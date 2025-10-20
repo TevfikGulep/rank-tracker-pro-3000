@@ -19,7 +19,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen">
+      <div className="flex min-h-screen">
         <Sidebar>
           <SidebarHeader>
             <div className="px-2 py-1">
@@ -44,7 +44,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               {/* Breadcrumbs or Title can go here */}
             </div>
           </header>
-          <main className="p-4 md:p-6">
+          <main className="flex-1 p-4 md:p-6">
             {children}
           </main>
         </SidebarInset>
