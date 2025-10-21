@@ -53,13 +53,14 @@ function ScanButton() {
   )
 }
 
-// This is now the main entry for the page, but it delegates client logic
+// This is the Server Component entry for the page.
+// It correctly destructures projectId from params and passes it to the client component.
 export default function ProjectPage({
-  params,
+  params: { projectId },
 }: {
   params: { projectId: string }
 }) {
-  return <ProjectClientPage projectId={params.projectId} />;
+  return <ProjectClientPage projectId={projectId} />;
 }
 
 
