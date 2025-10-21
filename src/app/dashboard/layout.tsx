@@ -37,7 +37,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <UserNav />
           </SidebarFooter>
         </Sidebar>
-        <SidebarInset>
+        <div className="flex-1">
           <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6">
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1">
@@ -47,7 +47,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <main className="flex-1 p-4 md:p-6">
             {children}
           </main>
-        </SidebarInset>
+        </div>
       </div>
     </SidebarProvider>
   )
