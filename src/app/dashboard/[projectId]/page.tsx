@@ -59,8 +59,7 @@ export default function ProjectPage({
 }: {
   params: { projectId: string }
 }) {
-  const { projectId } = params;
-  return <ProjectClientPage projectId={projectId} />;
+  return <ProjectClientPage projectId={params.projectId} />;
 }
 
 
