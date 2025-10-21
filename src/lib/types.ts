@@ -5,6 +5,7 @@ export type RankHistory = {
 
 export type Keyword = {
   id: string;
+  projectId: string;
   name: string;
   country: string;
   history: RankHistory[];
