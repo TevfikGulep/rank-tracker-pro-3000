@@ -90,7 +90,7 @@ export default function ProjectPage({
           <p className="text-muted-foreground">{project.domain}</p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-2">
-           <Select defaultValue="USA">
+           <Select defaultValue="Turkey">
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Ülke Seçin" />
             </SelectTrigger>
