@@ -5,8 +5,6 @@ import {
   LineChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from "recharts"
 import type { RankHistory } from "@/lib/types"
 
@@ -15,7 +13,7 @@ interface SparklineChartProps {
 }
 
 export function SparklineChart({ data }: SparklineChartProps) {
-  const chartData = data.map(item => ({
+  const chartData = data.slice(-7).map(item => ({ // Only show last 7 days
     ...item,
     // Invert rank for visual representation (lower rank is better, so higher on chart)
     displayRank: item.rank ? 101 - item.rank : null 
@@ -37,9 +35,11 @@ export function SparklineChart({ data }: SparklineChartProps) {
             backgroundColor: 'hsl(var(--background))',
             borderColor: 'hsl(var(--border))',
             borderRadius: 'var(--radius)',
+            fontSize: '12px',
+            padding: '4px 8px'
           }}
           labelStyle={{ color: 'hsl(var(--foreground))' }}
-          formatter={(value, name, props) => [props.payload.rank ?? 'N/A', 'Rank']}
+          formatter={(value, name, props) => [props.payload.rank ?? 'N/A', 'Sıra']}
           labelFormatter={(label) => new Date(label).toLocaleDateString()}
         />
         <Line

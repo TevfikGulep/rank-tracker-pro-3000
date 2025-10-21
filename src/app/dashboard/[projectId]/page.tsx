@@ -79,11 +79,11 @@ export default function ProjectPage({
   }, [params.projectId]);
 
   if (isLoading || !project) {
-    return <div>Yükleniyor...</div>;
+    return <div className="flex h-full flex-1 items-center justify-center">Yükleniyor...</div>;
   }
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 h-full flex flex-col">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
@@ -109,14 +109,14 @@ export default function ProjectPage({
           <ScanButton />
         </div>
       </div>
-      <Card>
+      <Card className="flex-1 flex flex-col">
         <CardHeader>
           <CardTitle>Sıralama Takibi</CardTitle>
           <CardDescription>
             Anahtar kelimelerinizin Google sıralama geçmişi ve haftalık değişimi.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1">
            {keywords.length > 0 ? (
             <KeywordTable keywords={keywords} />
           ) : (
