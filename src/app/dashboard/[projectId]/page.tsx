@@ -1,7 +1,7 @@
 
 "use client"
 
-import { getKeywordsForProject, getProject, countries } from "@/lib/data"
+import { addKeyword, getKeywordsForProject, getProject } from "@/lib/data"
 import { notFound } from "next/navigation"
 import {
   Card,
@@ -19,6 +19,8 @@ import type { Project, Keyword } from "@/lib/types"
 import { runWeeklyScan } from "@/lib/scanner"
 import { useToast } from "@/hooks/use-toast"
 import { AddKeywordDialog } from "./add-keyword-dialog"
+import { countries } from "@/lib/data"
+
 
 function ScanButton() {
   const [isPending, startTransition] = useTransition();
@@ -91,19 +93,22 @@ function ProjectClientPage({ projectId }: { projectId: string }) {
     loadData();
   }, [projectId]);
 
-  const handleAddKeyword = (newKeyword: Omit<Keyword, 'id' | 'history' | 'projectId'>) => {
-    // This is a simulation. In a real app, you'd save to a database.
-    const newKeywordFull: Keyword = {
-      ...newKeyword,
-      id: `kw_${Date.now()}`,
-      projectId: projectId,
-      history: [{ date: new Date().toISOString(), rank: null }],
-    };
-    setKeywords(prev => [...prev, newKeywordFull]);
-    toast({
-      title: "Anahtar Kelime Eklendi",
-      description: `"${newKeyword.name}" izlenmeye başlandı.`,
-    });
+  const handleAddKeyword = async (newKeywordData: Omit<Keyword, 'id' | 'history' | 'projectId'>) => {
+    try {
+      const newKeyword = await addKeyword(projectId, newKeywordData);
+      setKeywords(prev => [...prev, newKeyword]);
+      toast({
+        title: "Anahtar Kelime Eklendi",
+        description: `"${newKeyword.name}" izlenmeye başlandı.`,
+      });
+    } catch (error) {
+      console.error("Error adding keyword: ", error);
+      toast({
+        variant: "destructive",
+        title: "Hata",
+        description: "Anahtar kelime eklenirken bir hata oluştu.",
+      });
+    }
   };
 
 

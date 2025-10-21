@@ -1,9 +1,8 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import Image from "next/image"
-import { CreditCard, LogOut, PlusCircle, Settings, User } from "lucide-react"
-
+import { LogOut, Settings, User } from "lucide-react"
+import { auth } from "@/lib/firebase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,42 +15,51 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { PlaceHolderImages } from "@/lib/placeholder-images"
 
-export function UserNav() {
+interface UserNavProps {
+  displayName?: string | null;
+  email?: string | null;
+  photoURL?: string | null;
+}
+
+export function UserNav({ displayName, email, photoURL }: UserNavProps) {
   const router = useRouter()
-  const userAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar');
 
-  const handleLogout = () => {
-    document.cookie = 'auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    router.push('/login');
-    router.refresh();
+  const handleLogout = async () => {
+    await auth.signOut();
+    const response = await fetch('/api/logout', { method: 'POST' });
+    if (response.ok) {
+      router.push('/login');
+    } else {
+      console.error("Failed to logout");
+    }
   };
+  
+  const getInitials = (name?: string | null) => {
+    if (!name) return "U";
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return names[0][0] + names[names.length - 1][0];
+    }
+    return name.substring(0, 2);
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            {userAvatar && 
-              <AvatarImage 
-                src={userAvatar.imageUrl} 
-                alt="User avatar" 
-                data-ai-hint={userAvatar.imageHint}
-                width={40}
-                height={40}
-              />
-            }
-            <AvatarFallback>JD</AvatarFallback>
+            {photoURL && <AvatarImage src={photoURL} alt={displayName ?? ""} />}
+            <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">John Doe</p>
+            <p className="text-sm font-medium leading-none">{displayName ?? "User"}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              demo@ranktracker.pro
+              {email ?? ""}
             </p>
           </div>
         </DropdownMenuLabel>

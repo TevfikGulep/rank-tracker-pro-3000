@@ -21,6 +21,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import type { Project } from "@/lib/types"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog"
+import { Input } from "./ui/input"
+import { Label } from "./ui/label"
+import { addProject } from "@/lib/data"
+import { useToast } from "@/hooks/use-toast"
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverTrigger>
 
@@ -28,75 +33,136 @@ interface ProjectSwitcherProps extends PopoverTriggerProps {
   projects: Project[]
 }
 
+function CreateProjectDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
+  const [name, setName] = React.useState("");
+  const [domain, setDomain] = React.useState("");
+  const [isCreating, setIsCreating] = React.useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const handleCreateProject = async () => {
+    if (!name || !domain) {
+      toast({ variant: "destructive", title: "Eksik Bilgi", description: "Proje adı ve domain gereklidir." });
+      return;
+    }
+    setIsCreating(true);
+    try {
+      const newProject = await addProject({ name, domain });
+      toast({ title: "Proje Oluşturuldu", description: `"${newProject.name}" başarıyla oluşturuldu.` });
+      onOpenChange(false);
+      router.push(`/dashboard/${newProject.id}`);
+      // A full page reload might be necessary to refresh server-side project lists
+      router.refresh(); 
+    } catch (error) {
+      toast({ variant: "destructive", title: "Hata", description: "Proje oluşturulurken bir hata oluştu." });
+    } finally {
+      setIsCreating(false);
+      setName("");
+      setDomain("");
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Yeni Proje Oluştur</DialogTitle>
+          <DialogDescription>
+            İzlemek için yeni bir proje ekleyin.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2 pb-4">
+          <div className="space-y-2">
+            <Label htmlFor="project-name">Proje Adı</Label>
+            <Input id="project-name" placeholder="E-ticaret Sitem" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="project-domain">Domain</Label>
+            <Input id="project-domain" placeholder="example.com" value={domain} onChange={(e) => setDomain(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>İptal</Button>
+          <Button onClick={handleCreateProject} disabled={isCreating}>{isCreating ? "Oluşturuluyor..." : "Oluştur"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 export default function ProjectSwitcher({ className, projects = [] }: ProjectSwitcherProps) {
-  const [open, setOpen] = React.useState(false)
+  const [popoverOpen, setPopoverOpen] = React.useState(false)
+  const [dialogOpen, setDialogOpen] = React.useState(false)
   const router = useRouter()
   const params = useParams()
 
   const selectedProject = projects.find((project) => project.id === params.projectId)
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          role="combobox"
-          aria-expanded={open}
-          aria-label="Select a project"
-          className={cn("w-full justify-between text-base px-2", className)}
-        >
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">{selectedProject?.name ?? "Proje Seç"}</span>
-          </div>
-          <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[250px] p-0">
-        <Command>
-          <CommandList>
-            <CommandInput placeholder="Proje ara..." />
-            <CommandEmpty>Proje bulunamadı.</CommandEmpty>
-            <CommandGroup heading="Projeler">
-              {projects.map((project) => (
+    <>
+      <CreateProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            role="combobox"
+            aria-expanded={popoverOpen}
+            aria-label="Select a project"
+            className={cn("w-full justify-between text-base px-2", className)}
+          >
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">{selectedProject?.name ?? "Proje Seç"}</span>
+            </div>
+            <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[250px] p-0">
+          <Command>
+            <CommandList>
+              <CommandInput placeholder="Proje ara..." />
+              <CommandEmpty>Proje bulunamadı.</CommandEmpty>
+              <CommandGroup heading="Projeler">
+                {projects.map((project) => (
+                  <CommandItem
+                    key={project.id}
+                    onSelect={() => {
+                      router.push(`/dashboard/${project.id}`)
+                      setPopoverOpen(false)
+                    }}
+                    className="text-sm"
+                  >
+                    {project.name}
+                    <Check
+                      className={cn(
+                        "ml-auto h-4 w-4",
+                        selectedProject?.id === project.id
+                          ? "opacity-100"
+                          : "opacity-0"
+                      )}
+                    />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+            <CommandSeparator />
+            <CommandList>
+              <CommandGroup>
                 <CommandItem
-                  key={project.id}
                   onSelect={() => {
-                    router.push(`/dashboard/${project.id}`)
-                    setOpen(false)
+                    setPopoverOpen(false)
+                    setDialogOpen(true)
                   }}
-                  className="text-sm"
                 >
-                  {project.name}
-                  <Check
-                    className={cn(
-                      "ml-auto h-4 w-4",
-                      selectedProject?.id === project.id
-                        ? "opacity-100"
-                        : "opacity-0"
-                    )}
-                  />
+                  <PlusCircle className="mr-2 h-5 w-5" />
+                  Yeni Proje Oluştur
                 </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-          <CommandSeparator />
-          <CommandList>
-            <CommandGroup>
-              <CommandItem
-                onSelect={() => {
-                  // In a real app, this would open a dialog or a new page
-                  alert("Yeni proje oluşturma özelliği yakında eklenecektir.");
-                  setOpen(false)
-                }}
-              >
-                <PlusCircle className="mr-2 h-5 w-5" />
-                Yeni Proje Oluştur
-              </CommandItem>
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </>
   )
 }

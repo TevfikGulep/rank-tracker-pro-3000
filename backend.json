@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "cloudFunctions": [
+    {
+      "name": "ssrRankTrackerPro",
+      "region": "europe-west1",
+      "entryPoint": "server.js"
+    }
+  ]
+}

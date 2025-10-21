@@ -12,9 +12,20 @@ import ProjectSwitcher from "@/components/project-switcher"
 import { UserNav } from "@/components/user-nav"
 import { getProjects } from "@/lib/data"
 import { Separator } from "@/components/ui/separator"
+import { auth } from "@/lib/firebase/server"
+import { redirect } from "next/navigation"
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
+  const { currentUser } = await auth.verifySessionCookie()
+  if (!currentUser) {
+    return redirect("/login")
+  }
   const projects = await getProjects();
+  const userProps = {
+    displayName: currentUser.displayName,
+    email: currentUser.email,
+    photoURL: currentUser.photoURL,
+  }
 
   return (
     <SidebarProvider>
@@ -33,7 +44,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             {/* Additional nav items can go here */}
           </SidebarContent>
           <SidebarFooter>
-            <UserNav />
+            <UserNav {...userProps} />
           </SidebarFooter>
         </Sidebar>
         <div className="flex-1 flex flex-col">

@@ -1,123 +1,7 @@
-import type { Project, Keyword } from './types';
-
-export const projects: Project[] = [
-  { id: 'proj_1', name: 'E-commerce Store', domain: 'ecommercestore.com' },
-  { id: 'proj_2', name: 'SaaS Platform', domain: 'saasplatform.io' },
-  { id: 'proj_3', name: 'Blog Network', domain: 'blognetwork.co' },
-  { id: 'proj_4', name: 'Personal Portfolio', domain: 'johndoe.dev' },
-];
-
-export const keywords: Keyword[] = [
-  // Keywords for E-commerce Store (proj_1)
-  {
-    id: 'kw_1',
-    projectId: 'proj_1',
-    name: 'buy cheap electronics',
-    country: 'USA',
-    history: [
-      { date: '2024-04-01', rank: 15 },
-      { date: '2024-04-08', rank: 12 },
-      { date: '2024-04-15', rank: 10 },
-      { date: '2024-04-22', rank: 11 },
-      { date: '2024-04-29', rank: 8 },
-      { date: '2024-05-06', rank: 9 },
-      { date: '2024-05-13', rank: 10 },
-    ],
-  },
-  {
-    id: 'kw_2',
-    projectId: 'proj_1',
-    name: 'best gaming laptop 2024',
-    country: 'USA',
-    history: [
-      { date: '2024-04-01', rank: 5 },
-      { date: '2024-04-08', rank: 6 },
-      { date: '2024-04-15', rank: 4 },
-      { date: '2024-04-22', rank: 3 },
-      { date: '2024-04-29', rank: 3 },
-      { date: '2024-05-06', rank: 4 },
-      { date: '2024-05-13', rank: 2 },
-    ],
-  },
-  {
-    id: 'kw_3',
-    projectId: 'proj_1',
-    name: 'smartphone deals',
-    country: 'UK',
-    history: [
-      { date: '2024-04-01', rank: 25 },
-      { date: '2024-04-08', rank: 22 },
-      { date: '2024-04-15', rank: 28 },
-      { date: '2024-04-22', rank: 20 },
-      { date: '2024-04-29', rank: 18 },
-      { date: '2024-05-06', rank: 21 },
-      { date: '2024-05-13', rank: 19 },
-    ],
-  },
-  // Keywords for SaaS Platform (proj_2)
-  {
-    id: 'kw_4',
-    projectId: 'proj_2',
-    name: 'project management software',
-    country: 'Canada',
-    history: [
-      { date: '2024-04-01', rank: 7 },
-      { date: '2024-04-08', rank: 7 },
-      { date: '2024-04-15', rank: 6 },
-      { date: '2024-04-22', rank: 8 },
-      { date: '204-04-29', rank: 5 },
-      { date: '2024-05-06', rank: 5 },
-      { date: '2024-05-13', rank: 6 },
-    ],
-  },
-  {
-    id: 'kw_5',
-    projectId: 'proj_2',
-    name: 'crm for small business',
-    country: 'USA',
-    history: [
-      { date: '2024-04-01', rank: 18 },
-      { date: '2024-04-08', rank: 15 },
-      { date: '2024-04-15', rank: 12 },
-      { date: '2024-04-22', rank: 14 },
-      { date: '2024-04-29', rank: 13 },
-      { date: '2024-05-06', rank: 10 },
-      { date: '2024-05-13', rank: 11 },
-    ],
-  },
-  // Keywords for Blog Network (proj_3)
-  {
-    id: 'kw_6',
-    projectId: 'proj_3',
-    name: 'how to start a blog',
-    country: 'Australia',
-    history: [
-      { date: '2024-04-01', rank: 50 },
-      { date: '2024-04-08', rank: 45 },
-      { date: '2024-04-15', rank: 48 },
-      { date: '2024-04-22', rank: 40 },
-      { date: '2024-04-29', rank: 35 },
-      { date: '2024-05-06', rank: 33 },
-      { date: '2024-05-13', rank: 30 },
-    ],
-  },
-  {
-    id: 'kw_7',
-    projectId: 'proj_3',
-    name: 'content marketing tips',
-    country: 'UK',
-    history: [
-      { date: '2024-04-01', rank: 11 },
-      { date: '2024-04-08', rank: 10 },
-      { date: '2024-04-15', rank: 12 },
-      { date: '2024-04-22', rank: 9 },
-      { date: '2024-04-29', rank: 10 },
-      { date: '2024-05-06', rank: 8 },
-      { date: '2024-05-13', rank: 8 },
-    ],
-  },
-   // Keywords for Personal Portfolio (proj_4) - no keywords
-];
+import { db } from './firebase/client';
+import { collection, getDocs, doc, getDoc, addDoc, query, where, Timestamp } from 'firebase/firestore';
+import type { Project, Keyword, RankHistory } from './types';
+import { auth } from './firebase/server';
 
 export const countries = [
   { value: 'USA', label: 'USA' },
@@ -129,18 +13,74 @@ export const countries = [
   { value: 'Türkiye', label: 'Türkiye' },
 ];
 
-// Simulate API calls
+async function getCurrentUserId(): Promise<string> {
+  const { currentUser } = await auth.verifySessionCookie();
+  if (!currentUser) {
+    throw new Error("Not authenticated");
+  }
+  return currentUser.uid;
+}
+
 export const getProject = async (projectId: string): Promise<Project | null> => {
-  await new Promise(resolve => setTimeout(resolve, 50)); // Simulate network delay
-  return projects.find((p) => p.id === projectId) || null;
+  const userId = await getCurrentUserId();
+  const docRef = doc(db, 'users', userId, 'projects', projectId);
+  const docSnap = await getDoc(docRef);
+
+  if (docSnap.exists()) {
+    return { id: docSnap.id, ...docSnap.data() } as Project;
+  } else {
+    return null;
+  }
 };
 
 export const getProjects = async (): Promise<Project[]> => {
-  await new Promise(resolve => setTimeout(resolve, 50)); // Simulate network delay
-  return projects;
+  const userId = await getCurrentUserId();
+  const q = query(collection(db, 'users', userId, 'projects'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
 };
 
 export const getKeywordsForProject = async (projectId: string): Promise<Keyword[]> => {
-  await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
-  return keywords.filter((k) => k.projectId === projectId);
+  const userId = await getCurrentUserId();
+  const q = query(collection(db, 'users', userId, 'projects', projectId, 'keywords'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+          id: doc.id,
+          ...data,
+          history: data.history.map((h: any) => ({
+              ...h,
+              // Convert Firestore Timestamp to ISO string
+              date: h.date instanceof Timestamp ? h.date.toDate().toISOString() : h.date
+          }))
+      } as Keyword
+  });
+};
+
+export const addProject = async (project: Omit<Project, 'id'>): Promise<Project> => {
+    const userId = await getCurrentUserId();
+    const docRef = await addDoc(collection(db, 'users', userId, 'projects'), project);
+    return { id: docRef.id, ...project };
+};
+
+export const addKeyword = async (projectId: string, keywordData: Omit<Keyword, 'id' | 'projectId' | 'history'>): Promise<Keyword> => {
+    const userId = await getCurrentUserId();
+    const initialHistory: RankHistory = {
+        date: new Date().toISOString(),
+        rank: null,
+    };
+    const newKeyword = {
+        ...keywordData,
+        projectId,
+        history: [initialHistory],
+    };
+    const docRef = await addDoc(collection(db, 'users', userId, 'projects', projectId, 'keywords'), {
+        ...keywordData,
+        history: [
+            // Store date as Firestore Timestamp
+            { ...initialHistory, date: Timestamp.fromDate(new Date(initialHistory.date)) }
+        ]
+    });
+    return { id: docRef.id, ...newKeyword };
 };
