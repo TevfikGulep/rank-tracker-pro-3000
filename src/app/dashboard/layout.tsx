@@ -6,7 +6,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarTrigger,
-  SidebarInset,
 } from "@/components/ui/sidebar"
 import { AppLogo } from "@/components/app-logo"
 import ProjectSwitcher from "@/components/project-switcher"
