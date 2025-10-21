@@ -18,6 +18,7 @@ import { useEffect, useState, useTransition } from "react"
 import type { Project, Keyword } from "@/lib/types"
 import { runWeeklyScan } from "@/lib/scanner"
 import { useToast } from "@/hooks/use-toast"
+import { AddKeywordDialog } from "./add-keyword-dialog"
 
 function ScanButton() {
   const [isPending, startTransition] = useTransition();
@@ -69,6 +70,9 @@ function ProjectClientPage({ projectId }: { projectId: string }) {
   const [project, setProject] = useState<Project | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const { toast } = useToast();
+
 
   useEffect(() => {
     const loadData = async () => {
@@ -87,54 +91,78 @@ function ProjectClientPage({ projectId }: { projectId: string }) {
     loadData();
   }, [projectId]);
 
+  const handleAddKeyword = (newKeyword: Omit<Keyword, 'id' | 'history' | 'projectId'>) => {
+    // This is a simulation. In a real app, you'd save to a database.
+    const newKeywordFull: Keyword = {
+      ...newKeyword,
+      id: `kw_${Date.now()}`,
+      projectId: projectId,
+      history: [{ date: new Date().toISOString(), rank: null }],
+    };
+    setKeywords(prev => [...prev, newKeywordFull]);
+    toast({
+      title: "Anahtar Kelime Eklendi",
+      description: `"${newKeyword.name}" izlenmeye başlandı.`,
+    });
+  };
+
+
   if (isLoading || !project) {
     return <div className="flex h-full flex-1 items-center justify-center">Yükleniyor...</div>;
   }
   
   return (
-    <div className="space-y-4 h-full flex flex-col">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
-          <p className="text-muted-foreground">{project.domain}</p>
+    <>
+      <AddKeywordDialog
+        open={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
+        onAddKeyword={handleAddKeyword}
+      />
+      <div className="space-y-4 h-full flex flex-col">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
+            <p className="text-muted-foreground">{project.domain}</p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-2">
+            <Select defaultValue="Türkiye">
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Ülke Seçin" />
+              </SelectTrigger>
+              <SelectContent>
+                {countries.map((country) => (
+                  <SelectItem key={country.value} value={country.value}>
+                    {country.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => setIsAddDialogOpen(true)}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Anahtar Kelime Ekle
+            </Button>
+            <ScanButton />
+          </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-2">
-           <Select defaultValue="Türkiye">
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Ülke Seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {countries.map((country) => (
-                <SelectItem key={country.value} value={country.value}>
-                  {country.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Anahtar Kelime Ekle
-          </Button>
-          <ScanButton />
-        </div>
+        <Card className="flex-1 flex flex-col">
+          <CardHeader>
+            <CardTitle>Sıralama Takibi</CardTitle>
+            <CardDescription>
+              Anahtar kelimelerinizin Google sıralama geçmişi ve haftalık değişimi.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {keywords.length > 0 ? (
+              <KeywordTable keywords={keywords} />
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>Bu proje için henüz anahtar kelime eklenmemiş.</p>
+                <Button variant="link" onClick={() => setIsAddDialogOpen(true)} className="mt-2">Hemen bir tane ekleyin</Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
-      <Card className="flex-1 flex flex-col">
-        <CardHeader>
-          <CardTitle>Sıralama Takibi</CardTitle>
-          <CardDescription>
-            Anahtar kelimelerinizin Google sıralama geçmişi ve haftalık değişimi.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex-1">
-           {keywords.length > 0 ? (
-            <KeywordTable keywords={keywords} />
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>Bu proje için henüz anahtar kelime eklenmemiş.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    </>
   )
 }

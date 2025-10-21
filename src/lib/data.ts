@@ -21,6 +21,7 @@ export const keywords: Keyword[] = [
       { date: '2024-04-22', rank: 11 },
       { date: '2024-04-29', rank: 8 },
       { date: '2024-05-06', rank: 9 },
+      { date: '2024-05-13', rank: 10 },
     ],
   },
   {
@@ -35,6 +36,7 @@ export const keywords: Keyword[] = [
       { date: '2024-04-22', rank: 3 },
       { date: '2024-04-29', rank: 3 },
       { date: '2024-05-06', rank: 4 },
+      { date: '2024-05-13', rank: 2 },
     ],
   },
   {
@@ -49,6 +51,7 @@ export const keywords: Keyword[] = [
       { date: '2024-04-22', rank: 20 },
       { date: '2024-04-29', rank: 18 },
       { date: '2024-05-06', rank: 21 },
+      { date: '2024-05-13', rank: 19 },
     ],
   },
   // Keywords for SaaS Platform (proj_2)
@@ -62,8 +65,9 @@ export const keywords: Keyword[] = [
       { date: '2024-04-08', rank: 7 },
       { date: '2024-04-15', rank: 6 },
       { date: '2024-04-22', rank: 8 },
-      { date: '2024-04-29', rank: 5 },
+      { date: '204-04-29', rank: 5 },
       { date: '2024-05-06', rank: 5 },
+      { date: '2024-05-13', rank: 6 },
     ],
   },
   {
@@ -78,6 +82,7 @@ export const keywords: Keyword[] = [
       { date: '2024-04-22', rank: 14 },
       { date: '2024-04-29', rank: 13 },
       { date: '2024-05-06', rank: 10 },
+      { date: '2024-05-13', rank: 11 },
     ],
   },
   // Keywords for Blog Network (proj_3)
@@ -93,6 +98,7 @@ export const keywords: Keyword[] = [
       { date: '2024-04-22', rank: 40 },
       { date: '2024-04-29', rank: 35 },
       { date: '2024-05-06', rank: 33 },
+      { date: '2024-05-13', rank: 30 },
     ],
   },
   {
@@ -107,6 +113,7 @@ export const keywords: Keyword[] = [
       { date: '2024-04-22', rank: 9 },
       { date: '2024-04-29', rank: 10 },
       { date: '2024-05-06', rank: 8 },
+      { date: '2024-05-13', rank: 8 },
     ],
   },
    // Keywords for Personal Portfolio (proj_4) - no keywords
@@ -119,7 +126,7 @@ export const countries = [
   { value: 'Australia', label: 'Australia' },
   { value: 'Germany', label: 'Germany' },
   { value: 'France', label: 'France' },
-  { value: 'Turkey', label: 'Türkiye' },
+  { value: 'Türkiye', label: 'Türkiye' },
 ];
 
 // Simulate API calls
