@@ -53,11 +53,17 @@ function ScanButton() {
   )
 }
 
+// This is now the main entry for the page, but it delegates client logic
 export default function ProjectPage({
   params,
 }: {
   params: { projectId: string }
 }) {
+  return <ProjectClientPage projectId={params.projectId} />;
+}
+
+
+function ProjectClientPage({ projectId }: { projectId: string }) {
   const [project, setProject] = useState<Project | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,19 +71,19 @@ export default function ProjectPage({
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      const projectData = await getProject(params.projectId);
+      const projectData = await getProject(projectId);
       if (!projectData) {
         notFound();
         return;
       }
-      const keywordsData = await getKeywordsForProject(params.projectId);
+      const keywordsData = await getKeywordsForProject(projectId);
       setProject(projectData);
       setKeywords(keywordsData);
       setIsLoading(false);
     };
 
     loadData();
-  }, [params.projectId]);
+  }, [projectId]);
 
   if (isLoading || !project) {
     return <div className="flex h-full flex-1 items-center justify-center">Yükleniyor...</div>;
