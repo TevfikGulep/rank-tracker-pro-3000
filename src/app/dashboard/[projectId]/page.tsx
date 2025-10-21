@@ -57,6 +57,7 @@ export default function ProjectPage({
 }: {
   params: { projectId: string }
 }) {
+  const { projectId } = params;
   const [project, setProject] = useState<Project | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,19 +65,19 @@ export default function ProjectPage({
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      const projectData = await getProject(params.projectId);
+      const projectData = await getProject(projectId);
       if (!projectData) {
         notFound();
         return;
       }
-      const keywordsData = await getKeywordsForProject(params.projectId);
+      const keywordsData = await getKeywordsForProject(projectId);
       setProject(projectData);
       setKeywords(keywordsData);
       setIsLoading(false);
     };
 
     loadData();
-  }, [params.projectId]);
+  }, [projectId]);
 
   if (isLoading || !project) {
     return <div className="flex h-full flex-1 items-center justify-center">Yükleniyor...</div>;
@@ -90,7 +91,7 @@ export default function ProjectPage({
           <p className="text-muted-foreground">{project.domain}</p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-2">
-           <Select defaultValue="Turkey">
+           <Select defaultValue="Türkiye">
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Ülke Seçin" />
             </SelectTrigger>
