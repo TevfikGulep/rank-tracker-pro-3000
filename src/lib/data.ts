@@ -119,7 +119,7 @@ export const countries = [
   { value: 'Australia', label: 'Australia' },
   { value: 'Germany', label: 'Germany' },
   { value: 'France', label: 'France' },
-  { value: 'Turkey', label: 'Turkey' },
+  { value: 'Turkey', label: 'Türkiye' },
 ];
 
 // Simulate API calls
