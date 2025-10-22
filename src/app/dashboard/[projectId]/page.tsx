@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle, ScanLine } from "lucide-react"
 import { KeywordTable } from "./keyword-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect, useState, useTransition, useCallback } from "react"
+import { useEffect, useState, useTransition, useCallback, use } from "react"
 import type { Project, Keyword } from "@/lib/types"
 import { runWeeklyScan } from "@/lib/scanner"
 import { useToast } from "@/hooks/use-toast"
@@ -33,12 +33,12 @@ function ScanButton({ db, user, onScanComplete }: { db: Firestore, user: User, o
     startTransition(async () => {
       // In a real app, the API key should be stored securely and retrieved on the server-side.
       // For this example, we'll prompt the user if it's not in an env var.
-      const apiKey = process.env.NEXT_PUBLIC_SERPAPI_KEY || prompt("Please enter your SerpApi API Key:");
+      const apiKey = process.env.NEXT_PUBLIC_SERPAPI_KEY;
       if (!apiKey) {
         toast({
           variant: "destructive",
           title: "API Key Missing",
-          description: "SerpApi API Key is required to run a scan.",
+          description: "SerpApi API Key is required to run a scan. Please set NEXT_PUBLIC_SERPAPI_KEY.",
         });
         return;
       }
@@ -77,7 +77,7 @@ export default function ProjectPage({
 }: {
   params: { projectId: string }
 }) {
-  const { projectId } = params;
+  const { projectId } = use(Promise.resolve(params));
   const { user, firestore: db, isUserLoading: authLoading } = useFirebase();
   const [project, setProject] = useState<Project | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
