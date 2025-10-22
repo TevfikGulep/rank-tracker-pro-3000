@@ -26,6 +26,24 @@ function sendEmailNotification(subject: string, body: string) {
 }
 
 /**
+ * Generates a more realistic, weighted random rank.
+ * There's a higher chance of getting a better rank (1-20).
+ * @returns A number between 1 and 100.
+ */
+function generateRealisticRank(): number {
+  const randomFactor = Math.random();
+
+  if (randomFactor < 0.5) { // 50% chance for a top 20 rank
+    return Math.floor(Math.random() * 20) + 1;
+  } else if (randomFactor < 0.8) { // 30% chance for a rank between 21 and 50
+    return Math.floor(Math.random() * 30) + 21;
+  } else { // 20% chance for a rank between 51 and 100
+    return Math.floor(Math.random() * 50) + 51;
+  }
+}
+
+
+/**
  * Simulates running a weekly scan for all keywords in all projects for a given user.
  * This version now generates random rank data and updates Firestore.
  */
@@ -42,8 +60,8 @@ export async function runWeeklyScan(db: Firestore, userId: string): Promise<{ su
       for (const keyword of keywords) {
         console.log(`  - Scanning: "${keyword.name}" for project "${project.name}"...`);
         
-        // Simulate getting a rank. Generate a random number between 1 and 100.
-        const newRank = Math.floor(Math.random() * 100) + 1;
+        // Simulate getting a more realistic rank.
+        const newRank = generateRealisticRank();
         
         // Create the new history entry
         const newHistoryEntry = {
