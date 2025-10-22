@@ -14,22 +14,24 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle, ScanLine } from "lucide-react"
 import { KeywordTable } from "./keyword-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useState, useTransition, use } from "react"
 import type { Project, Keyword } from "@/lib/types"
 import { runWeeklyScan } from "@/lib/scanner"
 import { useToast } from "@/hooks/use-toast"
 import { AddKeywordDialog } from "./add-keyword-dialog"
 import { countries } from "@/lib/data"
 import { useFirebase } from "@/firebase"
+import type { Firestore } from "firebase/firestore"
+import type { User } from "firebase/auth"
 
 
-function ScanButton() {
+function ScanButton({ db, user }: { db: Firestore, user: User }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
   const handleScan = () => {
     startTransition(async () => {
-      const result = await runWeeklyScan();
+      const result = await runWeeklyScan(db, user.uid);
       if (result.success) {
         toast({
           title: "Tarama Başarılı",
@@ -117,7 +119,7 @@ export default function ProjectPage({
   };
 
 
-  if (isLoading || !project) {
+  if (isLoading || !project || !user || !db) {
     return <div className="flex h-full flex-1 items-center justify-center">Yükleniyor...</div>;
   }
   
@@ -151,7 +153,7 @@ export default function ProjectPage({
               <PlusCircle className="mr-2 h-4 w-4" />
               Anahtar Kelime Ekle
             </Button>
-            <ScanButton />
+            <ScanButton db={db} user={user} />
           </div>
         </div>
         <Card className="flex-1 flex flex-col">
