@@ -43,24 +43,29 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast({ title: "Giriş Başarılı", description: "Yönlendiriliyorsunuz..." });
-      // Redirect is handled by the useEffect above
+      // First, try to create a new user.
+      const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(newUserCredential.user, { displayName: "Demo User" });
+      toast({ title: "Hesap Oluşturuldu ve Giriş Yapıldı", description: "Yönlendiriliyorsunuz..." });
+      // Redirect is handled by useEffect
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
+      // If user already exists, try to sign in.
+      if (error.code === 'auth/email-already-in-use') {
         try {
-          const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
-          await updateProfile(newUserCredential.user, { displayName: "Demo User" });
-          toast({ title: "Hesap Oluşturuldu", description: "Giriş yapılıyor ve yönlendiriliyorsunuz..." });
-        } catch (createError: any) {
-          toast({ variant: "destructive", title: "Hesap Oluşturma Hatası", description: createError.message });
+          await signInWithEmailAndPassword(auth, email, password);
+          toast({ title: "Giriş Başarılı", description: "Yönlendiriliyorsunuz..." });
+          // Redirect is handled by useEffect
+        } catch (signInError: any) {
+          // If sign in fails (e.g., wrong password for existing user), show error.
+          toast({ variant: "destructive", title: "Giriş Hatası", description: signInError.message });
           setIsSubmitting(false);
         }
       } else {
-        toast({ variant: "destructive", title: "Giriş Hatası", description: error.message });
+        // For any other creation error, show it.
+        toast({ variant: "destructive", title: "Hesap Oluşturma Hatası", description: error.message });
         setIsSubmitting(false);
       }
-    } 
+    }
     // Do not set isSubmitting to false on success, as redirection will occur.
   };
 
