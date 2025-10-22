@@ -39,18 +39,6 @@ function sendEmailNotification(subject: string, body: string) {
 export async function runWeeklyScan(): Promise<{ success: boolean; scannedCount: number; error?: string }> {
   console.log("Starting weekly scan simulation...");
 
-  if (Math.random() < 0.3) {
-    const errorMessage = "Simulated network error: Failed to connect to scanning service.";
-    console.error(`SCAN FAILED: ${errorMessage}`);
-    
-    sendEmailNotification(
-      "CRITICAL: Weekly Keyword Scan Failed",
-      `The weekly keyword rank scanning process failed to start.\n\nError: ${errorMessage}\n\nPlease check the system logs immediately.`
-    );
-    
-    return { success: false, scannedCount: 0, error: errorMessage };
-  }
-
   try {
     // In a real app, you'd get all users from the admin SDK. Here we use a dummy ID.
     // This requires a 'users/demo-user-for-scan' document to exist in Firestore.
