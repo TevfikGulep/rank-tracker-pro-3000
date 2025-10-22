@@ -46,8 +46,11 @@ export async function runWeeklyScan(): Promise<{ success: boolean; scannedCount:
   }
 
   try {
-    // This is a big hack for simulation. In a real app, you would get all users from admin SDK.
-    const DUMMY_USER_ID_FOR_SCAN = "demo"; // In a real app, you'd iterate over all user IDs.
+    // This is a big hack for simulation. In a real app, you would get all users from admin SDK
+    // and this would require an admin-privileged environment.
+    // We use a placeholder ID here. For this to work, you must create a user 
+    // and then manually create the 'users/demo-user-id-for-scan' document in Firestore.
+    const DUMMY_USER_ID_FOR_SCAN = "demo-user-id-for-scan"; 
     const allProjects = await getProjects(db, DUMMY_USER_ID_FOR_SCAN);
     let totalKeywordsScanned = 0;
 
