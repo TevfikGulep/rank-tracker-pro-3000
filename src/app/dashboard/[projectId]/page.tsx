@@ -1,7 +1,7 @@
 
 "use client"
 
-import { getKeywordsForProject, getProject, addKeyword as addKeywordToDb, updateKeywordHistory } from "@/lib/data"
+import { getKeywordsForProject, getProject, addKeyword as addKeywordToDb, deleteKeyword as deleteKeywordFromDb, updateKeyword as updateKeywordInDb } from "@/lib/data"
 import { notFound } from "next/navigation"
 import {
   Card,
@@ -14,16 +14,17 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle, ScanLine } from "lucide-react"
 import { KeywordTable } from "./keyword-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect, useState, useTransition, useCallback, use } from "react"
+import { useEffect, useState, useTransition, useCallback } from "react"
 import type { Project, Keyword } from "@/lib/types"
 import { runWeeklyScan } from "@/lib/scanner"
 import { useToast } from "@/hooks/use-toast"
-import { AddKeywordDialog } from "./add-keyword-dialog"
+import { KeywordDialog } from "./add-keyword-dialog"
 import { countries } from "@/lib/data"
 import { useFirebase } from "@/firebase"
 import type { Firestore } from "firebase/firestore"
 import type { User } from "firebase/auth"
 
+type KeywordFormData = Omit<Keyword, 'id' | 'history' | 'projectId'>;
 
 function ScanButton({ db, user, onScanComplete }: { db: Firestore, user: User, onScanComplete: () => void }) {
   const [isPending, startTransition] = useTransition();
@@ -31,14 +32,12 @@ function ScanButton({ db, user, onScanComplete }: { db: Firestore, user: User, o
 
   const handleScan = () => {
     startTransition(async () => {
-      // In a real app, the API key should be stored securely and retrieved on the server-side.
-      // For this example, we'll prompt the user if it's not in an env var.
       const apiKey = process.env.NEXT_PUBLIC_SERPAPI_KEY;
       if (!apiKey) {
         toast({
           variant: "destructive",
           title: "API Key Missing",
-          description: "SerpApi API Key is required to run a scan. Please set NEXT_PUBLIC_SERPAPI_KEY.",
+          description: "SerpApi API Key is required to run a scan. Please set NEXT_PUBLIC_SERPAPI_KEY in your .env.local file.",
         });
         return;
       }
@@ -49,7 +48,7 @@ function ScanButton({ db, user, onScanComplete }: { db: Firestore, user: User, o
           title: "Tarama Başarılı",
           description: `${result.scannedCount} anahtar kelime başarıyla tarandı.`,
         });
-        onScanComplete(); // Trigger data refetch
+        onScanComplete();
       } else {
         toast({
           variant: "destructive",
@@ -82,7 +81,8 @@ export default function ProjectPage({
   const [project, setProject] = useState<Project | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [keywordToEdit, setKeywordToEdit] = useState<Keyword | null>(null);
   const { toast } = useToast();
 
   const loadData = useCallback(async () => {
@@ -105,32 +105,48 @@ export default function ProjectPage({
     loadData();
   }, [loadData]);
 
-  const handleAddKeyword = async (newKeywordData: Omit<Keyword, 'id' | 'history' | 'projectId'>) => {
-    if (!user || !db) {
-        toast({
-            variant: "destructive",
-            title: "Hata",
-            description: "Anahtar kelime eklemek için giriş yapmalısınız.",
-        });
-        return;
-    }
+  const handleDialogSubmit = async (formData: KeywordFormData) => {
+    if (!user || !db) return;
+
     try {
-      const newKeyword = await addKeywordToDb(db, user.uid, projectId, newKeywordData);
-      setKeywords(prev => [...prev, newKeyword]);
-      toast({
-        title: "Anahtar Kelime Eklendi",
-        description: `"${newKeyword.name}" izlenmeye başlandı.`,
-      });
+      if (keywordToEdit) {
+        // Update existing keyword
+        const updatedKeyword = await updateKeywordInDb(db, user.uid, projectId, keywordToEdit.id, formData);
+        setKeywords(prev => prev.map(kw => kw.id === updatedKeyword.id ? updatedKeyword : kw));
+        toast({ title: "Anahtar Kelime Güncellendi" });
+      } else {
+        // Add new keyword
+        const newKeyword = await addKeywordToDb(db, user.uid, projectId, formData);
+        setKeywords(prev => [...prev, newKeyword]);
+        toast({ title: "Anahtar Kelime Eklendi" });
+      }
     } catch (error) {
-      console.error("Error adding keyword: ", error);
-      toast({
-        variant: "destructive",
-        title: "Hata",
-        description: "Anahtar kelime eklenirken bir hata oluştu.",
-      });
+      console.error("Error saving keyword: ", error);
+      toast({ variant: "destructive", title: "Hata", description: "İşlem sırasında bir hata oluştu." });
     }
   };
 
+  const handleDeleteKeyword = async (keywordId: string) => {
+    if (!user || !db) return;
+    try {
+        await deleteKeywordFromDb(db, user.uid, projectId, keywordId);
+        setKeywords(prev => prev.filter(kw => kw.id !== keywordId));
+        toast({ title: "Anahtar Kelime Silindi" });
+    } catch (error) {
+        console.error("Error deleting keyword: ", error);
+        toast({ variant: "destructive", title: "Hata", description: "Anahtar kelime silinirken bir hata oluştu." });
+    }
+  };
+  
+  const openAddDialog = () => {
+    setKeywordToEdit(null);
+    setIsDialogOpen(true);
+  };
+  
+  const openEditDialog = (keyword: Keyword) => {
+    setKeywordToEdit(keyword);
+    setIsDialogOpen(true);
+  };
 
   if (isLoading || !project || !user || !db) {
     return <div className="flex h-full flex-1 items-center justify-center">Yükleniyor...</div>;
@@ -138,10 +154,11 @@ export default function ProjectPage({
   
   return (
     <>
-      <AddKeywordDialog
-        open={isAddDialogOpen}
-        onClose={() => setIsAddDialogOpen(false)}
-        onAddKeyword={handleAddKeyword}
+      <KeywordDialog
+        open={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onSubmit={handleDialogSubmit}
+        keywordToEdit={keywordToEdit}
       />
       <div className="space-y-4 h-full flex flex-col">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -162,7 +179,7 @@ export default function ProjectPage({
                 ))}
               </SelectContent>
             </Select>
-            <Button className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => setIsAddDialogOpen(true)}>
+            <Button className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" onClick={openAddDialog}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Anahtar Kelime Ekle
             </Button>
@@ -178,11 +195,15 @@ export default function ProjectPage({
           </CardHeader>
           <CardContent className="flex-1">
             {keywords.length > 0 ? (
-              <KeywordTable keywords={keywords} />
+              <KeywordTable 
+                keywords={keywords}
+                onDelete={handleDeleteKeyword}
+                onEdit={openEditDialog}
+              />
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <p>Bu proje için henüz anahtar kelime eklenmemiş.</p>
-                <Button variant="link" onClick={() => setIsAddDialogOpen(true)} className="mt-2">Hemen bir tane ekleyin</Button>
+                <Button variant="link" onClick={openAddDialog} className="mt-2">Hemen bir tane ekleyin</Button>
               </div>
             )}
           </CardContent>

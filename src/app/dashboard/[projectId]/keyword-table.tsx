@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -10,14 +11,27 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { Keyword } from "@/lib/types"
-import { ArrowDown, ArrowUp, Minus, TrendingUp } from "lucide-react"
+import { ArrowDown, ArrowUp, Minus, TrendingUp, Pencil, Trash2 } from "lucide-react"
 import { SparklineChart } from "./sparkline-chart"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
 import { KeywordHistoryDialog } from "./keyword-history-dialog"
+import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface KeywordTableProps {
   keywords: Keyword[]
+  onDelete: (keywordId: string) => void
+  onEdit: (keyword: Keyword) => void
 }
 
 function getRankChange(history: Keyword["history"]) {
@@ -35,20 +49,22 @@ function getRankChange(history: Keyword["history"]) {
 
 const RankChange = ({ change, direction }: { change: number; direction: "up" | "down" | "neutral" }) => {
   if (direction === "neutral") {
-    return <span className="flex items-center text-muted-foreground"><Minus className="h-4 w-4 mr-1" /> 0</span>
+    return <span className="flex items-center justify-center text-muted-foreground"><Minus className="h-4 w-4 mr-1" /> 0</span>
   }
   if (direction === "up") {
-    return <span className="flex items-center text-green-600"><ArrowUp className="h-4 w-4 mr-1" /> {change}</span>
+    return <span className="flex items-center justify-center text-green-600"><ArrowUp className="h-4 w-4 mr-1" /> {change}</span>
   }
-  return <span className="flex items-center text-red-600"><ArrowDown className="h-4 w-4 mr-1" /> {change}</span>
+  return <span className="flex items-center justify-center text-red-600"><ArrowDown className="h-4 w-4 mr-1" /> {change}</span>
 }
 
 const RankDisplay = ({ rank }: { rank: number | null }) => {
     return <span className="font-bold text-lg">{rank ?? "N/A"}</span>
 }
 
-export function KeywordTable({ keywords }: KeywordTableProps) {
+export function KeywordTable({ keywords, onDelete, onEdit }: KeywordTableProps) {
   const [selectedKeyword, setSelectedKeyword] = useState<Keyword | null>(null);
+  const [keywordToDelete, setKeywordToDelete] = useState<Keyword | null>(null);
+
 
   const handleRowClick = (keyword: Keyword) => {
     setSelectedKeyword(keyword);
@@ -57,6 +73,23 @@ export function KeywordTable({ keywords }: KeywordTableProps) {
   const handleDialogClose = () => {
     setSelectedKeyword(null);
   };
+  
+  const handleDeleteClick = (e: React.MouseEvent, keyword: Keyword) => {
+    e.stopPropagation();
+    setKeywordToDelete(keyword);
+  }
+
+  const handleEditClick = (e: React.MouseEvent, keyword: Keyword) => {
+    e.stopPropagation();
+    onEdit(keyword);
+  }
+
+  const confirmDelete = () => {
+    if (keywordToDelete) {
+      onDelete(keywordToDelete.id);
+      setKeywordToDelete(null);
+    }
+  }
 
   return (
     <>
@@ -70,7 +103,8 @@ export function KeywordTable({ keywords }: KeywordTableProps) {
             <TableHead className="text-center">Son Sıra</TableHead>
             <TableHead className="text-center">Değişim</TableHead>
             <TableHead className="w-[15%] text-center">Trend (7 Gün)</TableHead>
-            <TableHead className="text-right">Son Kontrol</TableHead>
+            <TableHead className="text-center">Son Kontrol</TableHead>
+            <TableHead className="text-right">Eylemler</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -105,8 +139,20 @@ export function KeywordTable({ keywords }: KeywordTableProps) {
                 <TableCell>
                   <SparklineChart data={keyword.history} />
                 </TableCell>
-                <TableCell className="text-right text-muted-foreground">
-                  {lastScan ? format(new Date(lastScan.date), "dd MMM, yyyy") : 'N/A'}
+                <TableCell className="text-center text-muted-foreground">
+                  {lastScan ? format(new Date(lastScan.date), "dd MMM, yy") : 'N/A'}
+                </TableCell>
+                 <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="icon" onClick={(e) => handleEditClick(e, keyword)}>
+                      <Pencil className="h-4 w-4" />
+                      <span className="sr-only">Düzenle</span>
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={(e) => handleDeleteClick(e, keyword)}>
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">Sil</span>
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             )
@@ -119,6 +165,22 @@ export function KeywordTable({ keywords }: KeywordTableProps) {
           open={!!selectedKeyword}
           onClose={handleDialogClose}
         />
+      )}
+      {keywordToDelete && (
+        <AlertDialog open={!!keywordToDelete} onOpenChange={() => setKeywordToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Bu eylem geri alınamaz. "{keywordToDelete.name}" anahtar kelimesini projenizden kalıcı olarak silecektir.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setKeywordToDelete(null)}>İptal</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete}>Sil</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </>
   )

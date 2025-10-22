@@ -33,53 +33,66 @@ import {
 import { countries } from "@/lib/data"
 import type { Keyword } from "@/lib/types"
 
-const addKeywordSchema = z.object({
+const keywordSchema = z.object({
   name: z.string().min(3, { message: "Anahtar kelime en az 3 karakter olmalıdır." }),
   country: z.string({ required_error: "Lütfen bir ülke seçin." }),
 })
 
-type AddKeywordFormValues = z.infer<typeof addKeywordSchema>
+type KeywordFormValues = z.infer<typeof keywordSchema>
 
-interface AddKeywordDialogProps {
+interface KeywordDialogProps {
   open: boolean
   onClose: () => void
-  onAddKeyword: (newKeyword: Omit<Keyword, 'id' | 'history' | 'projectId'>) => void
+  onSubmit: (data: KeywordFormValues) => void
+  keywordToEdit?: Keyword | null
 }
 
-export function AddKeywordDialog({
+export function KeywordDialog({
   open,
   onClose,
-  onAddKeyword,
-}: AddKeywordDialogProps) {
-  const form = useForm<AddKeywordFormValues>({
-    resolver: zodResolver(addKeywordSchema),
-    defaultValues: {
-      name: "",
-      country: "Türkiye",
-    },
+  onSubmit,
+  keywordToEdit,
+}: KeywordDialogProps) {
+  const isEditMode = !!keywordToEdit;
+
+  const form = useForm<KeywordFormValues>({
+    resolver: zodResolver(keywordSchema),
   })
 
-  const onSubmit = (data: AddKeywordFormValues) => {
-    onAddKeyword(data)
+  useEffect(() => {
+    if (open) {
+      if (isEditMode) {
+        form.reset({
+          name: keywordToEdit.name,
+          country: keywordToEdit.country,
+        });
+      } else {
+        form.reset({
+          name: "",
+          country: "Türkiye",
+        });
+      }
+    }
+  }, [open, isEditMode, keywordToEdit, form]);
+
+
+  const handleFormSubmit = (data: KeywordFormValues) => {
+    onSubmit(data)
     onClose()
   }
-
-  // Reset form when dialog is closed
-  useEffect(() => {
-    if (!open) {
-      form.reset()
-    }
-  }, [open, form])
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)}>
             <DialogHeader>
-              <DialogTitle>Yeni Anahtar Kelime Ekle</DialogTitle>
+              <DialogTitle>{isEditMode ? "Anahtar Kelimeyi Düzenle" : "Yeni Anahtar Kelime Ekle"}</DialogTitle>
               <DialogDescription>
-                İzlemek için yeni bir anahtar kelime ve ülke ekleyin.
+                {isEditMode 
+                  ? "Anahtar kelime adını veya ülkesini güncelleyin."
+                  : "İzlemek için yeni bir anahtar kelime ve ülke ekleyin."
+                }
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -102,7 +115,7 @@ export function AddKeywordDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Ülke</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Bir ülke seçin" />
@@ -125,7 +138,7 @@ export function AddKeywordDialog({
               <Button type="button" variant="ghost" onClick={onClose}>
                 İptal
               </Button>
-              <Button type="submit">Ekle</Button>
+              <Button type="submit">{isEditMode ? "Güncelle" : "Ekle"}</Button>
             </DialogFooter>
           </form>
         </Form>

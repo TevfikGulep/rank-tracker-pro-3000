@@ -1,7 +1,7 @@
 
 "use client"
 
-import { collection, getDocs, doc, getDoc, addDoc, query, Timestamp, where, type Firestore } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, Timestamp, where, type Firestore } from 'firebase/firestore';
 import type { Project, Keyword, RankHistory } from './types';
 
 export const getProjects = async (db: Firestore, userId: string): Promise<Project[]> => {
@@ -28,7 +28,7 @@ export const getKeywordsForProject = async (db: Firestore, userId: string, proje
   return querySnapshot.docs.map(doc => {
       const data = doc.data();
       // Ensure history is an array before mapping
-      const history = Array.isArray(data.history) ? data.history : [];
+      const history = Array.isArray(data.history) ? data.history.sort((a, b) => new Date(a.date.seconds * 1000).getTime() - new Date(b.date.seconds * 1000).getTime()) : [];
       return {
           id: doc.id,
           ...data,
@@ -37,7 +37,7 @@ export const getKeywordsForProject = async (db: Firestore, userId: string, proje
               date: h.date instanceof Timestamp ? h.date.toDate().toISOString() : h.date
           }))
       } as Keyword
-  });
+  }).sort((a,b) => a.name.localeCompare(b.name));
 };
 
 export const addProject = async (db: Firestore, userId: string, project: Omit<Project, 'id' | 'ownerId'>): Promise<Project> => {
@@ -69,6 +69,27 @@ export const addKeyword = async (db: Firestore, userId: string, projectId: strin
         country: keywordData.country,
         history: [initialHistory] 
     };
+};
+
+export const updateKeyword = async (db: Firestore, userId: string, projectId: string, keywordId: string, keywordData: Omit<Keyword, 'id' | 'projectId' | 'history'>): Promise<Keyword> => {
+    const keywordRef = doc(db, 'users', userId, 'projects', projectId, 'keywords', keywordId);
+    await updateDoc(keywordRef, keywordData);
+    const updatedDoc = await getDoc(keywordRef);
+    const data = updatedDoc.data();
+    const history = Array.isArray(data?.history) ? data.history.sort((a, b) => new Date(a.date.seconds * 1000).getTime() - new Date(b.date.seconds * 1000).getTime()) : [];
+    return {
+        id: updatedDoc.id,
+        ...data,
+        history: history.map((h: any) => ({
+            ...h,
+            date: h.date instanceof Timestamp ? h.date.toDate().toISOString() : h.date,
+        })),
+    } as Keyword;
+};
+
+export const deleteKeyword = async (db: Firestore, userId: string, projectId: string, keywordId: string): Promise<void> => {
+    const keywordRef = doc(db, 'users', userId, 'projects', projectId, 'keywords', keywordId);
+    await deleteDoc(keywordRef);
 };
 
 
