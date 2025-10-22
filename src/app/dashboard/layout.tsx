@@ -44,6 +44,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [user, db, authLoading, router, pathname]);
 
+  const handleProjectCreated = (newProject: Project) => {
+    setProjects(prevProjects => [...prevProjects, newProject]);
+  };
 
   if (authLoading || projectsLoading) {
     return <div className="flex h-screen w-full items-center justify-center">Yükleniyor...</div>;
@@ -70,7 +73,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </SidebarHeader>
           <SidebarContent className="p-0">
             <div className="p-2">
-              <ProjectSwitcher projects={projects} setProjects={setProjects} />
+              <ProjectSwitcher projects={projects} onProjectCreated={handleProjectCreated} />
             </div>
             <Separator />
             {/* Additional nav items can go here */}

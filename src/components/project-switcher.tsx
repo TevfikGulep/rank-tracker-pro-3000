@@ -33,7 +33,7 @@ type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverTrigger>
 
 interface ProjectSwitcherProps extends PopoverTriggerProps {
   projects: Project[]
-  setProjects: React.Dispatch<React.SetStateAction<Project[]>>
+  onProjectCreated: (project: Project) => void
 }
 
 function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: { open: boolean, onOpenChange: (open: boolean) => void, onProjectCreated: (project: Project) => void }) {
@@ -57,9 +57,9 @@ function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: { open: b
     try {
       const newProject = await addProjectToDb(db, user.uid, { name, domain });
       toast({ title: "Proje Oluşturuldu", description: `"${newProject.name}" başarıyla oluşturuldu.` });
-      onOpenChange(false);
       onProjectCreated(newProject);
       router.push(`/dashboard/${newProject.id}`);
+      onOpenChange(false);
     } catch (error) {
       toast({ variant: "destructive", title: "Hata", description: "Proje oluşturulurken bir hata oluştu." });
     } finally {
@@ -98,7 +98,7 @@ function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: { open: b
 }
 
 
-export default function ProjectSwitcher({ className, projects = [], setProjects }: ProjectSwitcherProps) {
+export default function ProjectSwitcher({ className, projects = [], onProjectCreated }: ProjectSwitcherProps) {
   const [popoverOpen, setPopoverOpen] = React.useState(false)
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const router = useRouter()
@@ -106,13 +106,9 @@ export default function ProjectSwitcher({ className, projects = [], setProjects 
 
   const selectedProject = projects.find((project) => project.id === params.projectId)
 
-  const handleProjectCreated = (newProject: Project) => {
-    setProjects(prev => [...prev, newProject]);
-  }
-
   return (
     <>
-      <CreateProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} onProjectCreated={handleProjectCreated} />
+      <CreateProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} onProjectCreated={onProjectCreated} />
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger asChild>
           <Button
