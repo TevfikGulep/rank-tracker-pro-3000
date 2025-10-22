@@ -1,22 +1,12 @@
 
 "use client"
 
-// This is a simulation of a weekly scanner service.
-// In a real-world application, this would be a cron job running on a server.
-// NOTE: This file uses client-side data fetching for simulation in this context.
-// A real cron job would use firebase-admin.
-
-import { getKeywordsForProject, getProjects } from "./data";
+import { getProjects, getKeywordsForProject } from "./data";
 import { type Firestore, doc, updateDoc, arrayUnion, Timestamp } from "firebase/firestore";
-
+import { getJson } from "serpapi";
 
 const NOTIFICATION_EMAIL = "admin@ranktracker.pro";
 
-/**
- * Simulates sending an email notification.
- * @param subject - The subject of the email.
- * @param body - The body content of the email.
- */
 function sendEmailNotification(subject: string, body: string) {
   console.log("--- EMAIL NOTIFICATION ---");
   console.log(`TO: ${NOTIFICATION_EMAIL}`);
@@ -25,30 +15,42 @@ function sendEmailNotification(subject: string, body: string) {
   console.log("--------------------------");
 }
 
-/**
- * Generates a more realistic, weighted random rank.
- * There's a higher chance of getting a better rank (1-20).
- * @returns A number between 1 and 100.
- */
-function generateRealisticRank(): number {
-  const randomFactor = Math.random();
+async function getGoogleRank(apiKey: string, query: string, domain: string, country: string): Promise<number | null> {
+  try {
+    const response = await getJson({
+      engine: "google",
+      q: query,
+      location: country,
+      num: 100, // Check top 100 results
+      api_key: apiKey,
+    });
 
-  if (randomFactor < 0.5) { // 50% chance for a top 20 rank
-    return Math.floor(Math.random() * 20) + 1;
-  } else if (randomFactor < 0.8) { // 30% chance for a rank between 21 and 50
-    return Math.floor(Math.random() * 30) + 21;
-  } else { // 20% chance for a rank between 51 and 100
-    return Math.floor(Math.random() * 50) + 51;
+    const organicResults = response.organic_results;
+    if (!organicResults) {
+      return null;
+    }
+
+    const rank = organicResults.findIndex((result: any) => 
+      result.link && result.link.includes(domain)
+    );
+
+    return rank !== -1 ? rank + 1 : null;
+  } catch (error) {
+    console.error(`SerpApi error for query "${query}":`, error);
+    // Return null to indicate the check failed, but don't stop the whole scan
+    return null;
   }
 }
 
+export async function runWeeklyScan(db: Firestore, userId: string, apiKey: string): Promise<{ success: boolean; scannedCount: number; error?: string }> {
+  console.log(`Starting weekly scan for user: ${userId}...`);
 
-/**
- * Simulates running a weekly scan for all keywords in all projects for a given user.
- * This version now generates random rank data and updates Firestore.
- */
-export async function runWeeklyScan(db: Firestore, userId: string): Promise<{ success: boolean; scannedCount: number; error?: string }> {
-  console.log(`Starting weekly scan simulation for user: ${userId}...`);
+  if (!apiKey) {
+    const message = "SerpApi API key is not configured.";
+    console.error(`SCAN FAILED: ${message}`);
+    sendEmailNotification("CRITICAL: Weekly Keyword Scan Failed", `The scan failed for user ${userId} because the SerpApi API Key is missing.`);
+    return { success: false, scannedCount: 0, error: message };
+  }
 
   try {
     const allProjects = await getProjects(db, userId);
@@ -58,32 +60,27 @@ export async function runWeeklyScan(db: Firestore, userId: string): Promise<{ su
       const keywords = await getKeywordsForProject(db, userId, project.id);
       
       for (const keyword of keywords) {
-        console.log(`  - Scanning: "${keyword.name}" for project "${project.name}"...`);
+        console.log(`  - Checking rank for: "${keyword.name}" in project "${project.name}"...`);
         
-        // Simulate getting a more realistic rank.
-        const newRank = generateRealisticRank();
+        const newRank = await getGoogleRank(apiKey, keyword.name, project.domain, keyword.country);
         
-        // Create the new history entry
         const newHistoryEntry = {
           date: Timestamp.fromDate(new Date()),
           rank: newRank,
         };
 
-        // Get a reference to the keyword document
         const keywordRef = doc(db, 'users', userId, 'projects', project.id, 'keywords', keyword.id);
 
-        // Atomically add the new history entry to the "history" array field.
         await updateDoc(keywordRef, {
             history: arrayUnion(newHistoryEntry)
         });
 
-        console.log(`  - Updated "${keyword.name}" with new rank: ${newRank}`);
-
+        console.log(`  - Updated "${keyword.name}" with new rank: ${newRank ?? "Not found"}`);
         totalKeywordsScanned++;
       }
     }
     
-    console.log(`Weekly scan finished successfully. Scanned ${totalKeywordsScanned} keywords for user ${userId}.`);
+    console.log(`Weekly scan finished. Scanned ${totalKeywordsScanned} keywords for user ${userId}.`);
     return { success: true, scannedCount: totalKeywordsScanned };
 
   } catch (e: any) {

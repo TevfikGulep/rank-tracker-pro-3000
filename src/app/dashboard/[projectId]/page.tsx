@@ -31,7 +31,19 @@ function ScanButton({ db, user, onScanComplete }: { db: Firestore, user: User, o
 
   const handleScan = () => {
     startTransition(async () => {
-      const result = await runWeeklyScan(db, user.uid);
+      // In a real app, the API key should be stored securely and retrieved on the server-side.
+      // For this example, we'll prompt the user if it's not in an env var.
+      const apiKey = process.env.NEXT_PUBLIC_SERPAPI_KEY || prompt("Please enter your SerpApi API Key:");
+      if (!apiKey) {
+        toast({
+          variant: "destructive",
+          title: "API Key Missing",
+          description: "SerpApi API Key is required to run a scan.",
+        });
+        return;
+      }
+      
+      const result = await runWeeklyScan(db, user.uid, apiKey);
       if (result.success) {
         toast({
           title: "Tarama Başarılı",
