@@ -1,38 +1,47 @@
 
 "use client"
 // src/lib/firebase/client.ts
-import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAuth, type Auth } from "firebase/auth";
 
+// This file is a placeholder for the Firebase config.
+// In a real Firebase Studio project, this would be populated with the project's config.
 const firebaseConfig: FirebaseOptions = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    // In a real project, these values would be populated, likely from environment variables
+    // For example:
+    // apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    // authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    // projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    // ...
 };
 
+let app: FirebaseApp | null = null;
+let db: Firestore | null = null;
+let auth: Auth | null = null;
 
 function initializeClientApp() {
     if (getApps().length > 0) {
-        return getApp();
+        app = getApp();
+    } else {
+        // This check is crucial. We only initialize if we have a projectId.
+        // In Firebase Studio, this config is expected to be injected.
+        // If it's missing, we log an error instead of crashing the app.
+        if (firebaseConfig.projectId) {
+            app = initializeApp(firebaseConfig);
+        } else {
+            console.error("Firebase config is missing a projectId. This indicates a problem with the Firebase Studio setup. The app will not connect to Firebase.");
+        }
     }
 
-    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-        console.error("Firebase config is missing. Ensure NEXT_PUBLIC_FIREBASE_API_KEY and NEXT_PUBLIC_FIREBASE_PROJECT_ID are set in your .env.local file.");
-        // Return a dummy object or throw an error to prevent further execution
-        // For now, we'll let it fail on initializeApp to match the original error,
-        // but the console error will point to the root cause.
+    if (app) {
+        db = getFirestore(app);
+        auth = getAuth(app);
     }
-    
-    return initializeApp(firebaseConfig);
 }
 
+// Initialize the app
+initializeClientApp();
 
-const app = initializeClientApp();
-const db = getFirestore(app);
-const auth = getAuth(app);
-
+// Export the initialized services. They might be null if config was missing.
 export { db, auth };
