@@ -29,8 +29,6 @@ function ScanButton() {
 
   const handleScan = () => {
     startTransition(async () => {
-      // Note: This scanner is a simulation and needs a real user context to work.
-      // In a real app, this might be a server action or an API call.
       const result = await runWeeklyScan();
       if (result.success) {
         toast({
@@ -41,7 +39,7 @@ function ScanButton() {
         toast({
           variant: "destructive",
           title: "Tarama Başarısız",
-          description: "Simüle edilmiş bir hata oluştu. Detaylar için konsolu kontrol edin.",
+          description: result.error || "Bilinmeyen bir hata oluştu.",
         });
       }
     });
@@ -64,7 +62,8 @@ export default function ProjectPage({
 }: {
   params: { projectId: string }
 }) {
-  const { projectId } = use(Promise.resolve(params));
+  const resolvedParams = use(Promise.resolve(params));
+  const { projectId } = resolvedParams;
   const { user, firestore: db, isUserLoading: authLoading } = useFirebase();
   const [project, setProject] = useState<Project | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
