@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle, ScanLine } from "lucide-react"
 import { KeywordTable } from "./keyword-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect, useState, useTransition, use } from "react"
+import { useEffect, useState, useTransition, useCallback } from "react"
 import type { Project, Keyword } from "@/lib/types"
 import { runWeeklyScan } from "@/lib/scanner"
 import { useToast } from "@/hooks/use-toast"
@@ -25,7 +25,7 @@ import type { Firestore } from "firebase/firestore"
 import type { User } from "firebase/auth"
 
 
-function ScanButton({ db, user }: { db: Firestore, user: User }) {
+function ScanButton({ db, user, onScanComplete }: { db: Firestore, user: User, onScanComplete: () => void }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -37,6 +37,7 @@ function ScanButton({ db, user }: { db: Firestore, user: User }) {
           title: "Tarama Başarılı",
           description: `${result.scannedCount} anahtar kelime başarıyla tarandı.`,
         });
+        onScanComplete(); // Trigger data refetch
       } else {
         toast({
           variant: "destructive",
@@ -54,7 +55,7 @@ function ScanButton({ db, user }: { db: Firestore, user: User }) {
       disabled={isPending}
     >
       <ScanLine className="mr-2 h-4 w-4" />
-      {isPending ? "Taranıyor..." : "Haftalık Taramayı Çalıştır (Test)"}
+      {isPending ? "Taranıyor..." : "Haftalık Taramayı Çalıştır"}
     </Button>
   )
 }
@@ -72,25 +73,25 @@ export default function ProjectPage({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { toast } = useToast();
 
-
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!authLoading && user && db) {
-      const loadData = async () => {
-        setIsLoading(true);
-        const projectData = await getProject(db, user.uid, projectId);
-        if (!projectData) {
-          notFound();
-          return;
-        }
-        const keywordsData = await getKeywordsForProject(db, user.uid, projectId);
-        setProject(projectData);
-        setKeywords(keywordsData);
-        setIsLoading(false);
-      };
-
-      loadData();
+      setIsLoading(true);
+      const projectData = await getProject(db, user.uid, projectId);
+      if (!projectData) {
+        notFound();
+        return;
+      }
+      const keywordsData = await getKeywordsForProject(db, user.uid, projectId);
+      setProject(projectData);
+      setKeywords(keywordsData);
+      setIsLoading(false);
     }
   }, [projectId, authLoading, user, db]);
+
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleAddKeyword = async (newKeywordData: Omit<Keyword, 'id' | 'history' | 'projectId'>) => {
     if (!user || !db) {
@@ -153,7 +154,7 @@ export default function ProjectPage({
               <PlusCircle className="mr-2 h-4 w-4" />
               Anahtar Kelime Ekle
             </Button>
-            <ScanButton db={db} user={user} />
+            <ScanButton db={db} user={user} onScanComplete={loadData} />
           </div>
         </div>
         <Card className="flex-1 flex flex-col">

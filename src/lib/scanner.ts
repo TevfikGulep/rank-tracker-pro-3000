@@ -7,7 +7,7 @@
 // A real cron job would use firebase-admin.
 
 import { getKeywordsForProject, getProjects } from "./data";
-import type { Firestore } from "firebase/firestore";
+import { type Firestore, doc, updateDoc, arrayUnion, Timestamp } from "firebase/firestore";
 
 
 const NOTIFICATION_EMAIL = "admin@ranktracker.pro";
@@ -27,6 +27,7 @@ function sendEmailNotification(subject: string, body: string) {
 
 /**
  * Simulates running a weekly scan for all keywords in all projects for a given user.
+ * This version now generates random rank data and updates Firestore.
  */
 export async function runWeeklyScan(db: Firestore, userId: string): Promise<{ success: boolean; scannedCount: number; error?: string }> {
   console.log(`Starting weekly scan simulation for user: ${userId}...`);
@@ -40,8 +41,26 @@ export async function runWeeklyScan(db: Firestore, userId: string): Promise<{ su
       
       for (const keyword of keywords) {
         console.log(`  - Scanning: "${keyword.name}" for project "${project.name}"...`);
-        // Simulate network delay for each keyword scan
-        await new Promise(resolve => setTimeout(resolve, 50)); 
+        
+        // Simulate getting a rank. Generate a random number between 1 and 100.
+        const newRank = Math.floor(Math.random() * 100) + 1;
+        
+        // Create the new history entry
+        const newHistoryEntry = {
+          date: Timestamp.fromDate(new Date()),
+          rank: newRank,
+        };
+
+        // Get a reference to the keyword document
+        const keywordRef = doc(db, 'users', userId, 'projects', project.id, 'keywords', keyword.id);
+
+        // Atomically add the new history entry to the "history" array field.
+        await updateDoc(keywordRef, {
+            history: arrayUnion(newHistoryEntry)
+        });
+
+        console.log(`  - Updated "${keyword.name}" with new rank: ${newRank}`);
+
         totalKeywordsScanned++;
       }
     }
