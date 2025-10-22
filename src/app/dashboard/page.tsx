@@ -1,4 +1,4 @@
-import { getProjects } from "@/lib/data"
+import { getProjects } from "@/lib/firebase/server-data"
 import { redirect } from "next/navigation"
 
 export default async function DashboardPage() {

@@ -6,9 +6,13 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 
+// Check if the environment variable is set
+if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+  throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+}
 
 const serviceAccount: ServiceAccount = JSON.parse(
-  process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
+  process.env.FIREBASE_SERVICE_ACCOUNT_KEY
 );
 
 if (!getApps().length) {
@@ -17,8 +21,16 @@ if (!getApps().length) {
   });
 }
 
-export const auth = getAuth();
+const adminAuth = getAuth();
 export const db = getFirestore();
+
+interface CustomAuth extends ReturnType<typeof getAuth> {
+    verifySessionCookie: (sessionCookie?: string | undefined, checkRevoked?: boolean) => Promise<{ currentUser: import('firebase-admin/auth').UserRecord | null; error: string | null; }>;
+    handleLogin: (req: NextRequest) => Promise<Response>;
+    handleLogout: () => Promise<Response>;
+}
+
+export const auth = adminAuth as CustomAuth;
 
 
 auth.verifySessionCookie = async function (sessionCookie?: string | undefined, checkRevoked?: boolean) {
@@ -39,6 +51,7 @@ auth.verifySessionCookie = async function (sessionCookie?: string | undefined, c
             error: null
         }
     } catch (error) {
+        console.error("Failed to verify session cookie:", error);
         return {
             currentUser: null,
             error: "Failed to verify session cookie"
@@ -59,7 +72,7 @@ auth.handleLogin = async function (req: LoginRequest) {
       cookies().set("session", sessionCookie, {
         maxAge: expiresIn,
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
         path: "/",
       });
       return new Response(JSON.stringify({ status: "success" }), { status: 200 });

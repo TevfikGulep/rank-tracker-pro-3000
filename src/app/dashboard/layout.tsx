@@ -10,13 +10,15 @@ import {
 import { AppLogo } from "@/components/app-logo"
 import ProjectSwitcher from "@/components/project-switcher"
 import { UserNav } from "@/components/user-nav"
-import { getProjects } from "@/lib/data"
+import { getProjects } from "@/lib/firebase/server-data"
 import { Separator } from "@/components/ui/separator"
 import { auth } from "@/lib/firebase/server"
 import { redirect } from "next/navigation"
+import { cookies } from "next/headers"
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const { currentUser } = await auth.verifySessionCookie()
+  const sessionCookie = cookies().get("session")?.value;
+  const { currentUser } = await auth.verifySessionCookie(sessionCookie)
   if (!currentUser) {
     return redirect("/login")
   }

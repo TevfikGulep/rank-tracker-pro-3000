@@ -1,7 +1,9 @@
 // This is a simulation of a weekly scanner service.
 // In a real-world application, this would be a cron job running on a server.
 
-import { getKeywordsForProject, getProjects } from "./data";
+import { getKeywordsForProject } from "./data";
+import { getProjects } from "./firebase/server-data";
+
 
 const NOTIFICATION_EMAIL = "admin@ranktracker.pro";
 
