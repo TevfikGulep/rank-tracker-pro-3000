@@ -1,7 +1,7 @@
 
 "use client"
 
-import { getKeywordsForProject, getProject, addKeyword as addKeywordToDb } from "@/lib/data"
+import { getKeywordsForProject, getProject, addKeyword as addKeywordToDb, updateKeywordHistory } from "@/lib/data"
 import { notFound } from "next/navigation"
 import {
   Card,
@@ -77,7 +77,7 @@ export default function ProjectPage({
 }: {
   params: { projectId: string }
 }) {
-  const { projectId } = use(Promise.resolve(params));
+  const { projectId } = params;
   const { user, firestore: db, isUserLoading: authLoading } = useFirebase();
   const [project, setProject] = useState<Project | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
