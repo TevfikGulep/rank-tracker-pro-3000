@@ -1,10 +1,166 @@
+/**
+ * @fileoverview Firestore Security Rules for Rank Tracker Pro.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Each user has complete
+ * control over their own data tree, including projects, keywords, and rankings.
+ *
+ * Data Structure:
+ * The data is structured hierarchically under /users/{userId}, ensuring clear ownership:
+ *   - /users/{userId}: User profile information.
+ *   - /users/{userId}/projects/{projectId}: Projects owned by the user.
+ *   - /users/{userId}/projects/{projectId}/keywords/{keywordId}: Keywords within a project.
+ *   - /users/{userId}/projects/{projectId}/keywords/{keywordId}/rankings/{rankingId}: Rankings for a keyword.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own data. No cross-user access is allowed.
+ * - Listing of user documents is disallowed for privacy.
+ * - Relational integrity is enforced to ensure that child documents (projects, keywords, rankings)
+ *   are always associated with the correct parent user.
+ * - Data shape validation is minimized to support rapid prototyping and schema evolution. Only
+ *   authorization-critical fields are validated.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Only allow authenticated users to access the database
-    match /users/{userId}/{documents=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    /**
+     * @description Protects the /users collection.
+     * @path /users/{userId}
+     * @allow (create) - Authenticated user creates their own profile (userId matches auth.uid).
+     * @deny (create) - Unauthenticated user attempts to create a profile.
+     * @deny (create) - Authenticated user attempts to create a profile with a mismatched userId.
+     * @deny (get) - Any user attempts to read another user's profile.
+     * @deny (list) - Any user attempts to list all user profiles (privacy).
+     * @deny (update) - Any user attempts to update another user's profile.
+     * @deny (delete) - Any user attempts to delete another user's profile.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId} {
+      // isSignedIn() function: Returns true if the request is authenticated.
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // isOwner(userId) function: Returns true if the request is authenticated and the userId matches the authenticated user's UID.
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      allow get: if false; // Disallow reading of user documents.
+
+      allow list: if false; // Disallow listing of user documents for privacy.
+
+      allow create: if isOwner(userId);
+
+      allow update: if isOwner(userId);
+
+      allow delete: if isOwner(userId);
+    }
+
+    /**
+     * @description Protects the /users/{userId}/projects collection.
+     * @path /users/{userId}/projects/{projectId}
+     * @allow (create) - Authenticated user creates a project under their own user ID.
+     * @allow (get) - Authenticated user reads a project under their own user ID.
+     * @allow (list) - Authenticated user lists projects under their own user ID.
+     * @deny (create) - Authenticated user attempts to create a project under another user's ID.
+     * @deny (get) - Authenticated user attempts to read a project under another user's ID.
+     * @deny (list) - Authenticated user attempts to list projects under another user's ID.
+     * @deny (update) - Authenticated user attempts to update a project under another user's ID.
+     * @deny (delete) - Authenticated user attempts to delete a project under another user's ID.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/projects/{projectId} {
+      // isSignedIn() function: Returns true if the request is authenticated.
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // isOwner(userId) function: Returns true if the request is authenticated and the userId matches the authenticated user's UID.
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId);
+
+      allow update: if isOwner(userId);
+
+      allow delete: if isOwner(userId);
+    }
+
+    /**
+     * @description Protects the /users/{userId}/projects/{projectId}/keywords collection.
+     * @path /users/{userId}/projects/{projectId}/keywords/{keywordId}
+     * @allow (create) - Authenticated user creates a keyword under their own project.
+     * @allow (get) - Authenticated user reads a keyword under their own project.
+     * @allow (list) - Authenticated user lists keywords under their own project.
+     * @deny (create) - Authenticated user attempts to create a keyword under another user's or project's ID.
+     * @deny (get) - Authenticated user attempts to read a keyword under another user's or project's ID.
+     * @deny (list) - Authenticated user attempts to list keywords under another user's or project's ID.
+     * @deny (update) - Authenticated user attempts to update a keyword under another user's or project's ID.
+     * @deny (delete) - Authenticated user attempts to delete a keyword under another user's or project's ID.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/projects/{projectId}/keywords/{keywordId} {
+      // isSignedIn() function: Returns true if the request is authenticated.
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // isOwner(userId) function: Returns true if the request is authenticated and the userId matches the authenticated user's UID.
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId);
+
+      allow update: if isOwner(userId);
+
+      allow delete: if isOwner(userId);
+    }
+
+    /**
+     * @description Protects the /users/{userId}/projects/{projectId}/keywords/{keywordId}/rankings collection.
+     * @path /users/{userId}/projects/{projectId}/keywords/{keywordId}/rankings/{rankingId}
+     * @allow (create) - Authenticated user creates a ranking under their own keyword.
+     * @allow (get) - Authenticated user reads a ranking under their own keyword.
+     * @allow (list) - Authenticated user lists rankings under their own keyword.
+     * @deny (create) - Authenticated user attempts to create a ranking under another user's, project's, or keyword's ID.
+     * @deny (get) - Authenticated user attempts to read a ranking under another user's, project's, or keyword's ID.
+     * @deny (list) - Authenticated user attempts to list rankings under another user's, project's, or keyword's ID.
+     * @deny (update) - Authenticated user attempts to update a ranking under another user's, project's, or keyword's ID.
+     * @deny (delete) - Authenticated user attempts to delete a ranking under another user's, project's, or keyword's ID.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/projects/{projectId}/keywords/{keywordId}/rankings/{rankingId} {
+      // isSignedIn() function: Returns true if the request is authenticated.
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // isOwner(userId) function: Returns true if the request is authenticated and the userId matches the authenticated user's UID.
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId);
+
+      allow update: if isOwner(userId);
+
+      allow delete: if isOwner(userId);
     }
   }
 }

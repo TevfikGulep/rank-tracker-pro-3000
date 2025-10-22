@@ -1,0 +1,210 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the Rank Tracker Pro application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "email"
+      ]
+    },
+    "Project": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Project",
+      "type": "object",
+      "description": "Represents a project for tracking website rankings.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Project entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Project)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the project."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name"
+      ]
+    },
+    "Keyword": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Keyword",
+      "type": "object",
+      "description": "Represents a keyword being tracked for a project.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Keyword entity."
+        },
+        "projectId": {
+          "type": "string",
+          "description": "Reference to Project. (Relationship: Project 1:N Keyword)"
+        },
+        "keywordText": {
+          "type": "string",
+          "description": "The keyword text."
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "keywordText"
+      ]
+    },
+    "Ranking": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Ranking",
+      "type": "object",
+      "description": "Represents a ranking for a keyword at a specific date and country.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Ranking entity."
+        },
+        "keywordId": {
+          "type": "string",
+          "description": "Reference to Keyword. (Relationship: Keyword 1:N Ranking)"
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the ranking.",
+          "format": "date-time"
+        },
+        "country": {
+          "type": "string",
+          "description": "The country for which the ranking was tracked."
+        },
+        "rank": {
+          "type": "number",
+          "description": "The Google ranking for the keyword on the specified date and country."
+        }
+      },
+      "required": [
+        "id",
+        "keywordId",
+        "date",
+        "country",
+        "rank"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles.  Root-level collection to enable easy querying and management of users.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user.  It is derived from `request.auth.uid` in security rules."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/projects/{projectId}",
+        "definition": {
+          "entityName": "Project",
+          "schema": {
+            "$ref": "#/backend/entities/Project"
+          },
+          "description": "Stores projects created by each user. Path-based ownership ensures only the user can access their projects.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (owner of the project)."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique identifier for the project."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/projects/{projectId}/keywords/{keywordId}",
+        "definition": {
+          "entityName": "Keyword",
+          "schema": {
+            "$ref": "#/backend/entities/Keyword"
+          },
+          "description": "Stores keywords associated with each project. Path-based ownership ensures only the project owner (user) can access the keywords.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (owner of the project)."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique identifier for the project."
+            },
+            {
+              "name": "keywordId",
+              "description": "The unique identifier for the keyword."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/projects/{projectId}/keywords/{keywordId}/rankings/{rankingId}",
+        "definition": {
+          "entityName": "Ranking",
+          "schema": {
+            "$ref": "#/backend/entities/Ranking"
+          },
+          "description": "Stores rankings for each keyword. Path-based ownership ensures only the project owner (user) can access the rankings.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (owner of the project)."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique identifier for the project."
+            },
+            {
+              "name": "keywordId",
+              "description": "The unique identifier for the keyword."
+            },
+            {
+              "name": "rankingId",
+              "description": "The unique identifier for the ranking."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to ensure Authorization Independence, Clarity of Intent, and support secure list operations (QAPs).  It leverages path-based ownership for user-specific data and denormalization to avoid `get()` calls in security rules.  The design incorporates Structural Segregation, ensuring each collection maintains a homogeneous security posture.\n\nAuthorization Independence is achieved primarily through path-based ownership.  Specifically, projects, keywords, and rankings are stored as subcollections under the user's document.  This eliminates the need to check parent document attributes in security rules. QAPs are supported because list operations can be secured using the path structure.\n\nThe structure also supports invariants such as ensuring the integrity of ownership (each project, keyword, and ranking belongs to a user) and the enforcement of naming conventions."
+  }
+}
