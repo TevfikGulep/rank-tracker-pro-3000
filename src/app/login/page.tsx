@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from 'next/navigation';
@@ -14,63 +15,56 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppLogo } from '@/components/app-logo';
 import { useState, useEffect } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, updateProfile } from "firebase/auth";
-import { auth } from '@/lib/firebase/client';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { useToast } from '@/hooks/use-toast';
+import { useFirebase } from '@/firebase';
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [email, setEmail] = useState("demo@ranktracker.pro");
   const [password, setPassword] = useState("demopassword");
-  const [isLoading, setIsLoading] = useState(true); // Başlangıçta auth durumunu kontrol etmek için true
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { auth, user, isUserLoading: isAuthLoading } = useFirebase();
 
-  // Kullanıcı zaten giriş yapmışsa dashboard'a yönlendir
+  // Redirect if user is already logged in
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        router.replace('/dashboard');
-      } else {
-        setIsLoading(false); // Kullanıcı yoksa formu göster
-      }
-    });
-    return () => unsubscribe();
-  }, [router]);
+    if (!isAuthLoading && user) {
+      router.replace('/dashboard');
+    }
+  }, [user, isAuthLoading, router]);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsLoading(true);
+    if (!auth) {
+        toast({ variant: "destructive", title: "Hata", description: "Kimlik doğrulama hizmeti mevcut değil." });
+        return;
+    }
+    setIsSubmitting(true);
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast({ title: "Giriş Başarılı", description: "Yönlendiriliyorsunuz..." });
-      // Yönlendirme useEffect içinde onAuthStateChanged tarafından yapılacak
+      // Redirect is handled by the useEffect above
     } catch (error: any) {
       if (error.code === 'auth/user-not-found') {
-        // Kullanıcı yoksa, yeni bir hesap oluştur
         try {
           const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
-          // Yeni kullanıcıya bir görünen ad ekleyelim
           await updateProfile(newUserCredential.user, { displayName: "Demo User" });
-
           toast({ title: "Hesap Oluşturuldu", description: "Giriş yapılıyor ve yönlendiriliyorsunuz..." });
-          // Yönlendirme yine onAuthStateChanged tarafından yapılacak
         } catch (createError: any) {
           toast({ variant: "destructive", title: "Hesap Oluşturma Hatası", description: createError.message });
+          setIsSubmitting(false);
         }
       } else {
         toast({ variant: "destructive", title: "Giriş Hatası", description: error.message });
+        setIsSubmitting(false);
       }
-    } finally {
-      // onAuthStateChanged'in yönlendirme yapması için isLoading'i false yapmıyoruz.
-      // Sadece hata durumunda false'a çekebiliriz.
-      if (!auth.currentUser) {
-          setIsLoading(false);
-      }
-    }
+    } 
+    // Do not set isSubmitting to false on success, as redirection will occur.
   };
 
-  if (isLoading) {
+  if (isAuthLoading || user) {
     return <div className="flex min-h-screen items-center justify-center">Yükleniyor...</div>;
   }
 
@@ -96,8 +90,8 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoading}>
-              {isLoading ? "Giriş Yapılıyor..." : "Giriş Yap"}
+            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmitting}>
+              {isSubmitting ? "Giriş Yapılıyor..." : "Giriş Yap"}
             </Button>
           </CardFooter>
         </form>

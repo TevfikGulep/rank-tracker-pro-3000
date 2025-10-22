@@ -16,12 +16,12 @@ import ProjectSwitcher from "@/components/project-switcher"
 import { UserNav } from "@/components/user-nav"
 import { getProjects } from "@/lib/data" 
 import { Separator } from "@/components/ui/separator"
-import { useFirebase } from "@/lib/firebase/provider";
+import { useFirebase } from "@/firebase";
 import { useRouter, usePathname } from "next/navigation";
 import type { Project } from "@/lib/types";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { user, db, loading: authLoading } = useFirebase();
+  const { user, firestore: db, isUserLoading: authLoading } = useFirebase();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const router = useRouter();

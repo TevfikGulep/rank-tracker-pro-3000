@@ -27,7 +27,7 @@ import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 import { addProject as addProjectToDb } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
-import { useFirebase } from "@/lib/firebase/provider"
+import { useFirebase } from "@/firebase"
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverTrigger>
 
@@ -42,7 +42,7 @@ function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: { open: b
   const [isCreating, setIsCreating] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { user, db } = useFirebase();
+  const { user, firestore: db } = useFirebase();
 
   const handleCreateProject = async () => {
     if (!name || !domain) {

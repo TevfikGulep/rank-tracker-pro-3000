@@ -27,10 +27,12 @@ export const getKeywordsForProject = async (db: Firestore, userId: string, proje
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => {
       const data = doc.data();
+      // Ensure history is an array before mapping
+      const history = Array.isArray(data.history) ? data.history : [];
       return {
           id: doc.id,
           ...data,
-          history: data.history.map((h: any) => ({
+          history: history.map((h: any) => ({
               ...h,
               date: h.date instanceof Timestamp ? h.date.toDate().toISOString() : h.date
           }))

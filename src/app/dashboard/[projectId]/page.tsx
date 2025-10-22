@@ -20,7 +20,7 @@ import { runWeeklyScan } from "@/lib/scanner"
 import { useToast } from "@/hooks/use-toast"
 import { AddKeywordDialog } from "./add-keyword-dialog"
 import { countries } from "@/lib/data"
-import { useFirebase } from "@/lib/firebase/provider"
+import { useFirebase } from "@/firebase"
 
 
 function ScanButton() {
@@ -65,7 +65,7 @@ export default function ProjectPage({
   params: { projectId: string }
 }) {
   const { projectId } = params;
-  const { user, db, loading: authLoading } = useFirebase();
+  const { user, firestore: db, isUserLoading: authLoading } = useFirebase();
   const [project, setProject] = useState<Project | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [isLoading, setIsLoading] = useState(true);

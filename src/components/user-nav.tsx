@@ -1,8 +1,8 @@
+
 "use client"
 
 import { useRouter } from "next/navigation"
 import { LogOut, Settings, User } from "lucide-react"
-import { auth } from "@/lib/firebase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
+import { useFirebase } from "@/firebase"
 
 interface UserNavProps {
   displayName?: string | null;
@@ -26,13 +27,14 @@ interface UserNavProps {
 export function UserNav({ displayName, email, photoURL }: UserNavProps) {
   const router = useRouter()
   const { toast } = useToast();
+  const { auth } = useFirebase();
 
   const handleLogout = async () => {
+    if (!auth) return;
     try {
       await auth.signOut();
       toast({ title: "Çıkış Başarılı", description: "Giriş sayfasına yönlendiriliyorsunuz." });
-      // Yönlendirme layout'taki onAuthStateChanged tarafından yapılacak
-      // router.push('/login'); 
+      // Redirect will be handled by the layout's auth listener
     } catch (error: any) {
       console.error("Failed to logout", error);
       toast({ variant: "destructive", title: "Çıkış Hatası", description: error.message });
