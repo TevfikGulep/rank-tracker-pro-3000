@@ -15,6 +15,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useToast } from "@/hooks/use-toast"
 
 interface UserNavProps {
   displayName?: string | null;
@@ -24,21 +25,24 @@ interface UserNavProps {
 
 export function UserNav({ displayName, email, photoURL }: UserNavProps) {
   const router = useRouter()
+  const { toast } = useToast();
 
   const handleLogout = async () => {
-    await auth.signOut();
-    const response = await fetch('/api/logout', { method: 'POST' });
-    if (response.ok) {
-      router.push('/login');
-    } else {
-      console.error("Failed to logout");
+    try {
+      await auth.signOut();
+      toast({ title: "Çıkış Başarılı", description: "Giriş sayfasına yönlendiriliyorsunuz." });
+      // Yönlendirme layout'taki onAuthStateChanged tarafından yapılacak
+      // router.push('/login'); 
+    } catch (error: any) {
+      console.error("Failed to logout", error);
+      toast({ variant: "destructive", title: "Çıkış Hatası", description: error.message });
     }
   };
   
   const getInitials = (name?: string | null) => {
     if (!name) return "U";
     const names = name.split(' ');
-    if (names.length > 1) {
+    if (names.length > 1 && names[1]) {
       return names[0][0] + names[names.length - 1][0];
     }
     return name.substring(0, 2);

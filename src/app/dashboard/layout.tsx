@@ -1,4 +1,7 @@
+"use client"
+
 import type { ReactNode } from "react"
+import { useEffect, useState } from "react";
 import {
   SidebarProvider,
   Sidebar,
@@ -10,23 +13,54 @@ import {
 import { AppLogo } from "@/components/app-logo"
 import ProjectSwitcher from "@/components/project-switcher"
 import { UserNav } from "@/components/user-nav"
-import { getProjects } from "@/lib/firebase/server-data"
+import { getProjects } from "@/lib/data" 
 import { Separator } from "@/components/ui/separator"
-import { auth } from "@/lib/firebase/server"
-import { redirect } from "next/navigation"
-import { cookies } from "next/headers"
+import { auth } from "@/lib/firebase/client" 
+import { onAuthStateChanged, User } from "firebase/auth";
+import { useRouter, usePathname } from "next/navigation";
+import type { Project } from "@/lib/types";
 
-export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const sessionCookie = cookies().get("session")?.value;
-  const { currentUser } = await auth.verifySessionCookie(sessionCookie)
-  if (!currentUser) {
-    return redirect("/login")
+export default function DashboardLayout({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUser(user);
+        const userProjects = await getProjects();
+        setProjects(userProjects);
+        
+        // Eğer kullanıcı dashboard ana sayfasındaysa ve projeleri varsa ilk projeye yönlendir.
+        if (pathname === '/dashboard' && userProjects.length > 0) {
+          router.replace(`/dashboard/${userProjects[0].id}`);
+        }
+        
+      } else {
+        router.replace("/login");
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [router, pathname]);
+
+
+  if (loading) {
+    return <div className="flex h-screen w-full items-center justify-center">Yükleniyor...</div>;
   }
-  const projects = await getProjects();
+  
+  if (!user) {
+    return null; // Yönlendirme gerçekleşirken hiçbir şey gösterme
+  }
+
   const userProps = {
-    displayName: currentUser.displayName,
-    email: currentUser.email,
-    photoURL: currentUser.photoURL,
+    displayName: user.displayName,
+    email: user.email,
+    photoURL: user.photoURL,
   }
 
   return (

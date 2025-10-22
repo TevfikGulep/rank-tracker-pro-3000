@@ -1,37 +1,18 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { auth } from '@/lib/firebase/server';
 
-export async function middleware(request: NextRequest) {
+// Bu middleware şimdilik basitleştirildi.
+// Gerçek kimlik doğrulama istemci tarafında Firebase ile yapılacak.
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  let isAuthenticated = false;
 
-  const sessionCookie = request.cookies.get('session')?.value;
-  if (sessionCookie) {
-    const { currentUser, error } = await auth.verifySessionCookie(sessionCookie, true);
-    if (currentUser && !error) {
-      isAuthenticated = true;
-    } else {
-      // If verification fails, treat as not authenticated and clear the invalid cookie
-      const response = NextResponse.redirect(new URL('/login', request.url));
-      response.cookies.delete('session');
-      return response;
-    }
-  }
-
-
-  if (isAuthenticated && pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  if (!isAuthenticated && pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-  
+  // Kök dizini doğrudan dashboard'a yönlendir.
   if (pathname === '/') {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
+  // Oturum kontrolü şimdilik kaldırıldı, istemci tarafı halledecek.
+  // Gelişmiş senaryolar için burası Firebase Auth durumu ile senkronize edilebilir.
 
   return NextResponse.next();
 }

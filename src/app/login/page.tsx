@@ -13,8 +13,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppLogo } from '@/components/app-logo';
-import { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { useState, useEffect } from 'react';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, updateProfile } from "firebase/auth";
 import { auth } from '@/lib/firebase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,43 +23,38 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [email, setEmail] = useState("demo@ranktracker.pro");
   const [password, setPassword] = useState("demopassword");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Başlangıçta auth durumunu kontrol etmek için true
+
+  // Kullanıcı zaten giriş yapmışsa dashboard'a yönlendir
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        router.replace('/dashboard');
+      } else {
+        setIsLoading(false); // Kullanıcı yoksa formu göster
+      }
+    });
+    return () => unsubscribe();
+  }, [router]);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const idToken = await userCredential.user.getIdToken();
-      
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${idToken}` },
-      });
-
-      if (response.ok) {
-        router.push('/dashboard');
-      } else {
-        throw new Error('Failed to create session.');
-      }
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({ title: "Giriş Başarılı", description: "Yönlendiriliyorsunuz..." });
+      // Yönlendirme useEffect içinde onAuthStateChanged tarafından yapılacak
     } catch (error: any) {
       if (error.code === 'auth/user-not-found') {
-        // If user does not exist, create a new user
+        // Kullanıcı yoksa, yeni bir hesap oluştur
         try {
           const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
-          const idToken = await newUserCredential.user.getIdToken();
-          
-          const response = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${idToken}` },
-          });
+          // Yeni kullanıcıya bir görünen ad ekleyelim
+          await updateProfile(newUserCredential.user, { displayName: "Demo User" });
 
-          if (response.ok) {
-            router.push('/dashboard');
-          } else {
-            throw new Error('Failed to create session for new user.');
-          }
+          toast({ title: "Hesap Oluşturuldu", description: "Giriş yapılıyor ve yönlendiriliyorsunuz..." });
+          // Yönlendirme yine onAuthStateChanged tarafından yapılacak
         } catch (createError: any) {
           toast({ variant: "destructive", title: "Hesap Oluşturma Hatası", description: createError.message });
         }
@@ -67,9 +62,17 @@ export default function LoginPage() {
         toast({ variant: "destructive", title: "Giriş Hatası", description: error.message });
       }
     } finally {
-      setIsLoading(false);
+      // onAuthStateChanged'in yönlendirme yapması için isLoading'i false yapmıyoruz.
+      // Sadece hata durumunda false'a çekebiliriz.
+      if (!auth.currentUser) {
+          setIsLoading(false);
+      }
     }
   };
+
+  if (isLoading) {
+    return <div className="flex min-h-screen items-center justify-center">Yükleniyor...</div>;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
