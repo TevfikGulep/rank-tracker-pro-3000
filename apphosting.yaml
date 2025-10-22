@@ -14,6 +14,8 @@ env:
   - variable: FIREBASE_AUTH_COOKIE_SECRET_KEY
     # Automatically managed by Firebase App Hosting. Do not change.
     secret: FIREBASE_AUTH_COOKIE_SECRET_KEY
+  - variable: FIREBASE_SERVICE_ACCOUNT
+    secret: FIREBASE_SERVICE_ACCOUNT
   - variable: FIREBASE_AUTH_EMULATOR_HOST
     availability:
       - BUILD

@@ -16,7 +16,7 @@ import { KeywordTable } from "./keyword-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEffect, useState, useTransition, useCallback } from "react"
 import type { Project, Keyword } from "@/lib/types"
-import { runWeeklyScan } from "@/lib/scanner"
+import { runScanAction } from "@/lib/actions"
 import { useToast } from "@/hooks/use-toast"
 import { KeywordDialog } from "./add-keyword-dialog"
 import { countries } from "@/lib/data"
@@ -26,23 +26,13 @@ import type { User } from "firebase/auth"
 
 type KeywordFormData = Omit<Keyword, 'id' | 'history' | 'projectId'>;
 
-function ScanButton({ db, user, onScanComplete }: { db: Firestore, user: User, onScanComplete: () => void }) {
+function ScanButton({ user, onScanComplete }: { user: User, onScanComplete: () => void }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
   const handleScan = () => {
     startTransition(async () => {
-      const apiKey = process.env.NEXT_PUBLIC_SERPAPI_KEY;
-      if (!apiKey) {
-        toast({
-          variant: "destructive",
-          title: "API Key Missing",
-          description: "SerpApi API Key is required to run a scan. Please set NEXT_PUBLIC_SERPAPI_KEY in your .env.local file.",
-        });
-        return;
-      }
-      
-      const result = await runWeeklyScan(db, user.uid, apiKey);
+      const result = await runScanAction(user.uid);
       if (result.success) {
         toast({
           title: "Tarama Başarılı",
@@ -183,7 +173,7 @@ export default function ProjectPage({
               <PlusCircle className="mr-2 h-4 w-4" />
               Anahtar Kelime Ekle
             </Button>
-            <ScanButton db={db} user={user} onScanComplete={loadData} />
+            <ScanButton user={user} onScanComplete={loadData} />
           </div>
         </div>
         <Card className="flex-1 flex flex-col">
