@@ -1,4 +1,3 @@
-
 "use client"
 
 import { db, auth } from './firebase/client';
@@ -102,4 +101,3 @@ export const countries = [
   { value: 'France', label: 'France' },
   { value: 'Türkiye', label: 'Türkiye' },
 ];
-
