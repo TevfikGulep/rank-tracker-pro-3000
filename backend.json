@@ -1,10 +1,79 @@
 {
-  "version": "1",
-  "cloudFunctions": [
-    {
-      "name": "ssrRankTrackerPro",
-      "region": "europe-west1",
-      "entryPoint": "server.js"
+  "entities": {
+    "project": {
+      "title": "Project",
+      "description": "Represents an SEO project that tracks keywords for a specific domain.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The user-defined name of the project."
+        },
+        "domain": {
+          "type": "string",
+          "description": "The domain name associated with the project (e.g., 'example.com')."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the user who owns the project."
+        }
+      },
+      "required": ["name", "domain", "ownerId"]
+    },
+    "keyword": {
+      "title": "Keyword",
+      "description": "Represents a specific keyword being tracked within a project.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The keyword phrase."
+        },
+        "country": {
+          "type": "string",
+          "description": "The country for which the rank is being tracked."
+        },
+        "projectId": {
+          "type": "string",
+          "description": "The ID of the project this keyword belongs to."
+        },
+        "history": {
+          "type": "array",
+          "description": "An array of historical ranking data.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date-time",
+                "description": "The date of the rank check."
+              },
+              "rank": {
+                "type": ["number", "null"],
+                "description": "The rank on the given date (null if not found)."
+              }
+            }
+          }
+        }
+      },
+      "required": ["name", "country", "projectId"]
     }
-  ]
+  },
+  "auth": {
+    "providers": ["email"]
+  },
+  "firestore": {
+    "/users/{userId}/projects/{projectId}": {
+      "schema": {
+        "$ref": "#/entities/project"
+      },
+      "description": "Stores project documents owned by a user."
+    },
+    "/users/{userId}/projects/{projectId}/keywords/{keywordId}": {
+      "schema": {
+        "$ref": "#/entities/keyword"
+      },
+      "description": "Stores keyword documents for a specific project."
+    }
+  }
 }

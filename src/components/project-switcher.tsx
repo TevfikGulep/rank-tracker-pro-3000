@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -24,35 +25,41 @@ import type { Project } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
-import { addProject } from "@/lib/data"
+import { addProject as addProjectToDb } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
+import { useFirebase } from "@/lib/firebase/provider"
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverTrigger>
 
 interface ProjectSwitcherProps extends PopoverTriggerProps {
   projects: Project[]
+  setProjects: React.Dispatch<React.SetStateAction<Project[]>>
 }
 
-function CreateProjectDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
+function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: { open: boolean, onOpenChange: (open: boolean) => void, onProjectCreated: (project: Project) => void }) {
   const [name, setName] = React.useState("");
   const [domain, setDomain] = React.useState("");
   const [isCreating, setIsCreating] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const { user, db } = useFirebase();
 
   const handleCreateProject = async () => {
     if (!name || !domain) {
       toast({ variant: "destructive", title: "Eksik Bilgi", description: "Proje adı ve domain gereklidir." });
       return;
     }
+    if (!user || !db) {
+        toast({ variant: "destructive", title: "Hata", description: "Proje oluşturmak için giriş yapmalısınız." });
+        return;
+    }
     setIsCreating(true);
     try {
-      const newProject = await addProject({ name, domain });
+      const newProject = await addProjectToDb(db, user.uid, { name, domain });
       toast({ title: "Proje Oluşturuldu", description: `"${newProject.name}" başarıyla oluşturuldu.` });
       onOpenChange(false);
+      onProjectCreated(newProject);
       router.push(`/dashboard/${newProject.id}`);
-      // A full page reload might be necessary to refresh server-side project lists
-      router.refresh(); 
     } catch (error) {
       toast({ variant: "destructive", title: "Hata", description: "Proje oluşturulurken bir hata oluştu." });
     } finally {
@@ -91,7 +98,7 @@ function CreateProjectDialog({ open, onOpenChange }: { open: boolean, onOpenChan
 }
 
 
-export default function ProjectSwitcher({ className, projects = [] }: ProjectSwitcherProps) {
+export default function ProjectSwitcher({ className, projects = [], setProjects }: ProjectSwitcherProps) {
   const [popoverOpen, setPopoverOpen] = React.useState(false)
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const router = useRouter()
@@ -99,9 +106,13 @@ export default function ProjectSwitcher({ className, projects = [] }: ProjectSwi
 
   const selectedProject = projects.find((project) => project.id === params.projectId)
 
+  const handleProjectCreated = (newProject: Project) => {
+    setProjects(prev => [...prev, newProject]);
+  }
+
   return (
     <>
-      <CreateProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <CreateProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} onProjectCreated={handleProjectCreated} />
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger asChild>
           <Button

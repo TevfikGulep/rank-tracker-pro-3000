@@ -1,58 +1,35 @@
 
 "use client"
 
-import { db, auth } from './firebase/client';
-import { collection, getDocs, doc, getDoc, addDoc, query, Timestamp, where } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, query, Timestamp, where, type Firestore } from 'firebase/firestore';
 import type { Project, Keyword, RankHistory } from './types';
-import { onAuthStateChanged, type User } from "firebase/auth";
 
-
-// Firebase auth nesnesinin yüklenmesini beklemek için bir yardımcı fonksiyon
-const waitForAuth = (): Promise<User> => {
-  return new Promise<User>((resolve, reject) => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        resolve(user);
-        unsubscribe();
-      } else {
-        // Bu durum, korumalı bir rotada oturum olmadan çağrı yapıldığında olabilir.
-        // Layout zaten yönlendirme yapmalı, ama bir güvenlik önlemi olarak.
-        reject(new Error("Kullanıcı oturumu bulunamadı."));
-      }
-    });
-  });
-};
-
-export const getProjects = async (): Promise<Project[]> => {
-    const user = await waitForAuth();
-    const q = query(collection(db, 'users', user.uid, 'projects'));
+export const getProjects = async (db: Firestore, userId: string): Promise<Project[]> => {
+    const q = query(collection(db, 'users', userId, 'projects'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
 };
 
-export const getProject = async (projectId: string): Promise<Project | null> => {
-  const user = await waitForAuth();
-  const docRef = doc(db, 'users', user.uid, 'projects', projectId);
+export const getProject = async (db: Firestore, userId: string, projectId: string): Promise<Project | null> => {
+  const docRef = doc(db, 'users', userId, 'projects', projectId);
   const docSnap = await getDoc(docRef);
 
   if (docSnap.exists()) {
     return { id: docSnap.id, ...docSnap.data() } as Project;
   } else {
-    console.warn(`Project with id ${projectId} not found for user ${user.uid}`);
+    console.warn(`Project with id ${projectId} not found for user ${userId}`);
     return null;
   }
 };
 
-export const getKeywordsForProject = async (projectId: string): Promise<Keyword[]> => {
-  const user = await waitForAuth();
-  const q = query(collection(db, 'users', user.uid, 'projects', projectId, 'keywords'));
+export const getKeywordsForProject = async (db: Firestore, userId: string, projectId: string): Promise<Keyword[]> => {
+  const q = query(collection(db, 'users', userId, 'projects', projectId, 'keywords'));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => {
       const data = doc.data();
       return {
           id: doc.id,
           ...data,
-          // Firestore Timestamp'i ISO string'e çevir
           history: data.history.map((h: any) => ({
               ...h,
               date: h.date instanceof Timestamp ? h.date.toDate().toISOString() : h.date
@@ -61,14 +38,13 @@ export const getKeywordsForProject = async (projectId: string): Promise<Keyword[
   });
 };
 
-export const addProject = async (project: Omit<Project, 'id'>): Promise<Project> => {
-    const user = await waitForAuth();
-    const docRef = await addDoc(collection(db, 'users', user.uid, 'projects'), project);
-    return { id: docRef.id, ...project };
+export const addProject = async (db: Firestore, userId: string, project: Omit<Project, 'id' | 'ownerId'>): Promise<Project> => {
+    const newProject = { ...project, ownerId: userId };
+    const docRef = await addDoc(collection(db, 'users', userId, 'projects'), newProject);
+    return { id: docRef.id, ...newProject };
 };
 
-export const addKeyword = async (projectId: string, keywordData: Omit<Keyword, 'id' | 'projectId' | 'history'>): Promise<Keyword> => {
-    const user = await waitForAuth();
+export const addKeyword = async (db: Firestore, userId: string, projectId: string, keywordData: Omit<Keyword, 'id' | 'projectId' | 'history'>): Promise<Keyword> => {
     const initialHistory: RankHistory = {
         date: new Date().toISOString(),
         rank: null,
@@ -82,7 +58,7 @@ export const addKeyword = async (projectId: string, keywordData: Omit<Keyword, '
         ]
     };
 
-    const docRef = await addDoc(collection(db, 'users', user.uid, 'projects', projectId, 'keywords'), newKeywordForDb);
+    const docRef = await addDoc(collection(db, 'users', userId, 'projects', projectId, 'keywords'), newKeywordForDb);
     
     return { 
         id: docRef.id, 
@@ -93,6 +69,7 @@ export const addKeyword = async (projectId: string, keywordData: Omit<Keyword, '
     };
 };
 
+
 export const countries = [
   { value: 'USA', label: 'USA' },
   { value: 'UK', label: 'United Kingdom' },
@@ -102,4 +79,3 @@ export const countries = [
   { value: 'France', label: 'France' },
   { value: 'Türkiye', label: 'Türkiye' },
 ];
-

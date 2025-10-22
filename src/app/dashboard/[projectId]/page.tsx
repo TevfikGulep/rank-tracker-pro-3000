@@ -1,7 +1,7 @@
 
 "use client"
 
-import { addKeyword, getKeywordsForProject, getProject } from "@/lib/data"
+import { getKeywordsForProject, getProject, addKeyword as addKeywordToDb } from "@/lib/data"
 import { notFound } from "next/navigation"
 import {
   Card,
@@ -20,6 +20,7 @@ import { runWeeklyScan } from "@/lib/scanner"
 import { useToast } from "@/hooks/use-toast"
 import { AddKeywordDialog } from "./add-keyword-dialog"
 import { countries } from "@/lib/data"
+import { useFirebase } from "@/lib/firebase/provider"
 
 
 function ScanButton() {
@@ -28,6 +29,8 @@ function ScanButton() {
 
   const handleScan = () => {
     startTransition(async () => {
+      // Note: This scanner is a simulation and needs a real user context to work.
+      // In a real app, this might be a server action or an API call.
       const result = await runWeeklyScan();
       if (result.success) {
         toast({
@@ -56,19 +59,13 @@ function ScanButton() {
   )
 }
 
-// This is the Server Component entry for the page.
-// It correctly destructures projectId from params and passes it to the client component.
 export default function ProjectPage({
   params,
 }: {
   params: { projectId: string }
 }) {
   const { projectId } = params;
-  return <ProjectClientPage projectId={projectId} />;
-}
-
-
-function ProjectClientPage({ projectId }: { projectId: string }) {
+  const { user, db, loading: authLoading } = useFirebase();
   const [project, setProject] = useState<Project | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,25 +74,35 @@ function ProjectClientPage({ projectId }: { projectId: string }) {
 
 
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      const projectData = await getProject(projectId);
-      if (!projectData) {
-        notFound();
-        return;
-      }
-      const keywordsData = await getKeywordsForProject(projectId);
-      setProject(projectData);
-      setKeywords(keywordsData);
-      setIsLoading(false);
-    };
+    if (!authLoading && user && db) {
+      const loadData = async () => {
+        setIsLoading(true);
+        const projectData = await getProject(db, user.uid, projectId);
+        if (!projectData) {
+          notFound();
+          return;
+        }
+        const keywordsData = await getKeywordsForProject(db, user.uid, projectId);
+        setProject(projectData);
+        setKeywords(keywordsData);
+        setIsLoading(false);
+      };
 
-    loadData();
-  }, [projectId]);
+      loadData();
+    }
+  }, [projectId, authLoading, user, db]);
 
   const handleAddKeyword = async (newKeywordData: Omit<Keyword, 'id' | 'history' | 'projectId'>) => {
+    if (!user || !db) {
+        toast({
+            variant: "destructive",
+            title: "Hata",
+            description: "Anahtar kelime eklemek için giriş yapmalısınız.",
+        });
+        return;
+    }
     try {
-      const newKeyword = await addKeyword(projectId, newKeywordData);
+      const newKeyword = await addKeywordToDb(db, user.uid, projectId, newKeywordData);
       setKeywords(prev => [...prev, newKeyword]);
       toast({
         title: "Anahtar Kelime Eklendi",

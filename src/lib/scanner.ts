@@ -5,6 +5,7 @@
 // A real cron job would use firebase-admin.
 
 import { getKeywordsForProject, getProjects } from "./data";
+import { db } from "./firebase/client";
 
 
 const NOTIFICATION_EMAIL = "admin@ranktracker.pro";
@@ -45,11 +46,13 @@ export async function runWeeklyScan(): Promise<{ success: boolean; scannedCount:
   }
 
   try {
-    const allProjects = await getProjects();
+    // This is a big hack for simulation. In a real app, you would get all users from admin SDK.
+    const DUMMY_USER_ID_FOR_SCAN = "demo"; // In a real app, you'd iterate over all user IDs.
+    const allProjects = await getProjects(db, DUMMY_USER_ID_FOR_SCAN);
     let totalKeywordsScanned = 0;
 
     for (const project of allProjects) {
-      const keywords = await getKeywordsForProject(project.id);
+      const keywords = await getKeywordsForProject(db, DUMMY_USER_ID_FOR_SCAN, project.id);
       
       // Simulate scanning each keyword
       for (const keyword of keywords) {
