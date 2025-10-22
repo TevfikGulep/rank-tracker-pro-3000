@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle, ScanLine } from "lucide-react"
 import { KeywordTable } from "./keyword-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect, useState, useTransition, use } from "react"
+import { useEffect, useState, useTransition } from "react"
 import type { Project, Keyword } from "@/lib/types"
 import { runWeeklyScan } from "@/lib/scanner"
 import { useToast } from "@/hooks/use-toast"
@@ -62,8 +62,7 @@ export default function ProjectPage({
 }: {
   params: { projectId: string }
 }) {
-  const resolvedParams = use(Promise.resolve(params));
-  const { projectId } = resolvedParams;
+  const { projectId } = params;
   const { user, firestore: db, isUserLoading: authLoading } = useFirebase();
   const [project, setProject] = useState<Project | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
