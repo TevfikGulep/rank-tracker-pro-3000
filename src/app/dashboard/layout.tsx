@@ -23,7 +23,8 @@ import type { Project } from "@/lib/types";
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, firestore: db, isUserLoading: authLoading } = useFirebase();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -34,9 +35,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           setProjects(userProjects);
           // If the user is on the main dashboard page and has projects, redirect to the first one.
           if (pathname === '/dashboard' && userProjects.length > 0) {
+            setRedirecting(true);
             router.replace(`/dashboard/${userProjects[0].id}`);
+          } else {
+             setIsLoading(false);
           }
-          setProjectsLoading(false);
         });
       } else {
         router.replace("/login");
@@ -44,16 +47,29 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [user, db, authLoading, router, pathname]);
 
+  useEffect(() => {
+    // If we have projects and we are no longer on the root dashboard, stop redirecting state
+    if (projects.length > 0 && pathname !== '/dashboard') {
+      setIsLoading(false);
+      setRedirecting(false);
+    }
+    // If there are no projects, we are not loading anymore.
+    if (projects.length === 0) {
+       setIsLoading(false);
+    }
+  }, [pathname, projects]);
+
+
   const handleProjectCreated = (newProject: Project) => {
     setProjects(prevProjects => [...prevProjects, newProject]);
   };
 
-  if (authLoading || projectsLoading) {
+  if (authLoading || isLoading || redirecting) {
     return <div className="flex h-screen w-full items-center justify-center">Yükleniyor...</div>;
   }
   
   if (!user) {
-    return null; // Redirecting...
+    return null; // Redirecting to login...
   }
 
   const userProps = {
