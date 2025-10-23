@@ -84,11 +84,7 @@ export default function ProjectPage({
   const { toast } = useToast();
 
   const loadData = useCallback(async () => {
-    if (!user || !db) {
-      // If auth is still loading, wait for the next run.
-      if (authLoading) return;
-      // If auth is done and still no user, something is wrong, but avoid fetching.
-      setIsLoading(false);
+    if (!user || !db || !projectId) {
       return;
     }
     
@@ -108,12 +104,14 @@ export default function ProjectPage({
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, user, db, authLoading, toast]);
+  }, [projectId, user, db, toast]);
 
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (user && db && projectId) {
+      loadData();
+    }
+  }, [user, db, projectId, loadData]);
 
   const handleDialogSubmit = async (formData: KeywordFormData) => {
     if (!user || !db) return;
