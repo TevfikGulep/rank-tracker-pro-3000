@@ -1,6 +1,4 @@
 
-"use client"
-
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, Timestamp, where, type Firestore } from 'firebase/firestore';
 import type { Project, Keyword, RankHistory } from './types';
 
