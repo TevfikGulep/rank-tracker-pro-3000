@@ -10,11 +10,7 @@ import {
   getFirestore,
 } from 'firebase/firestore';
 import { getJson } from 'serpapi';
-import { getApps, initializeApp, getApp } from 'firebase/app';
-import { firebaseConfig } from '@/firebase/config';
-import { getAuth } from 'firebase-admin/auth';
 import { getAdminApp } from '@/firebase/admin';
-
 
 // Helper function to get rank
 async function getGoogleRank(
@@ -63,8 +59,15 @@ export async function runScanAction(
   }
 
   // We need a server-side firestore instance
-  const adminApp = getAdminApp();
-  const db = getFirestore(adminApp);
+  let db: Firestore;
+  try {
+    const adminApp = getAdminApp();
+    db = getFirestore(adminApp);
+  } catch (e: any) {
+    console.error(`SCAN FAILED: Could not initialize Firebase Admin. ${e.message}`);
+    return { success: false, scannedCount: 0, error: `Could not initialize Firebase Admin: ${e.message}` };
+  }
+
 
   try {
     const allProjects = await getProjects(db, userId);
