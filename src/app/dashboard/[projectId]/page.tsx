@@ -2,7 +2,7 @@
 "use client"
 
 import { getKeywordsForProject, getProject, addKeyword as addKeywordToDb, deleteKeyword as deleteKeywordFromDb, updateKeyword as updateKeywordInDb } from "@/lib/data"
-import { notFound } from "next/navigation"
+import { notFound, useParams } from "next/navigation"
 import {
   Card,
   CardContent,
@@ -69,12 +69,9 @@ function ScanButton({ user, onScanComplete }: { user: User, onScanComplete: () =
   )
 }
 
-export default function ProjectPage({
-  params,
-}: {
-  params: { projectId: string }
-}) {
-  const { projectId } = params;
+export default function ProjectPage() {
+  const params = useParams();
+  const projectId = params.projectId as string;
   const { user, firestore: db, isUserLoading: authLoading } = useFirebase();
   const [project, setProject] = useState<Project | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
