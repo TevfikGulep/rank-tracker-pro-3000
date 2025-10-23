@@ -1,16 +1,41 @@
+
 'use server';
 
-import { getProjects, getKeywordsForProject } from './data';
+import { getKeywordsForProject, getProjects } from './data';
 import {
   type Firestore,
   doc,
   updateDoc,
   arrayUnion,
   Timestamp,
-  getFirestore,
 } from 'firebase/firestore';
 import { getJson } from 'serpapi';
-import { getAdminApp } from '@/firebase/admin';
+import * as admin from 'firebase-admin';
+import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
+
+
+// Helper to initialize the admin app
+function initializeAdminApp() {
+  if (admin.apps.length > 0) {
+    return admin.apps[0]!;
+  }
+
+  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
+  
+  if (!serviceAccount) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set. This is required for server-side admin actions.');
+  }
+
+  try {
+    const serviceAccountJson = JSON.parse(serviceAccount);
+    return admin.initializeApp({
+      credential: admin.credential.cert(serviceAccountJson),
+    });
+  } catch (error: any) {
+    throw new Error(`Failed to parse FIREBASE_SERVICE_ACCOUNT: ${error.message}`);
+  }
+}
+
 
 // Helper function to get rank
 async function getGoogleRank(
@@ -61,8 +86,8 @@ export async function runScanAction(
   // We need a server-side firestore instance
   let db: Firestore;
   try {
-    const adminApp = getAdminApp();
-    db = getFirestore(adminApp);
+    const adminApp = initializeAdminApp();
+    db = getAdminFirestore(adminApp) as unknown as Firestore;
   } catch (e: any) {
     console.error(`SCAN FAILED: Could not initialize Firebase Admin. ${e.message}`);
     return { success: false, scannedCount: 0, error: `Could not initialize Firebase Admin: ${e.message}` };
