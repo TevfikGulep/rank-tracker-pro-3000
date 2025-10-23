@@ -1,26 +1,22 @@
 
 'use server';
 
-import { getProjects } from './data';
-import {
-  type Firestore,
-  doc,
-  updateDoc,
-  arrayUnion,
-  Timestamp,
-} from 'firebase/firestore';
 import { getJson } from 'serpapi';
 import * as admin from 'firebase-admin';
-import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
 import type { Project, Keyword } from './types';
-
 
 // Helper to initialize the admin app idempotently
 function initializeAdminApp() {
   if (admin.apps.length) {
     return admin.app();
   }
-  return admin.initializeApp();
+  // Explicitly use environment variables for credentials and database URL
+  // This is more reliable in serverless environments like App Hosting.
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
+  return admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+  });
 }
 
 // Helper function to get rank
@@ -57,10 +53,8 @@ async function getGoogleRank(
 }
 
 // Server Action
-export async function runScanAction(
-  userId: string
-): Promise<{ success: boolean; scannedCount: number; error?: string }> {
-  console.log(`Starting weekly scan for user: ${userId}...`);
+export async function runScanAction(userId: string): Promise<{ success: boolean; scannedCount: number; error?: string }> {
+  console.log(`Starting scan for user: ${userId}...`);
   const apiKey = process.env.SERPAPI_KEY;
 
   if (!apiKey) {
@@ -72,21 +66,29 @@ export async function runScanAction(
   let db: admin.firestore.Firestore;
   try {
     const adminApp = initializeAdminApp();
-    db = getAdminFirestore(adminApp);
+    db = admin.firestore(adminApp);
   } catch (e: any) {
-    const errorMessage = `Could not initialize Firebase Admin. This is required for server-side admin actions. Error: ${e.message}`;
+    const errorMessage = `Could not initialize Firebase Admin. Error: ${e.message}`;
     console.error(`SCAN FAILED: ${errorMessage}`);
     return { success: false, scannedCount: 0, error: errorMessage };
   }
 
   try {
     const projectsSnapshot = await db.collection(`users/${userId}/projects`).get();
+    if (projectsSnapshot.empty) {
+        console.log(`No projects found for user ${userId}.`);
+        return { success: true, scannedCount: 0 };
+    }
     const allProjects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
     
     let totalKeywordsScanned = 0;
 
     for (const project of allProjects) {
       const keywordsSnapshot = await db.collection(`users/${userId}/projects/${project.id}/keywords`).get();
+      if (keywordsSnapshot.empty) {
+        console.log(`No keywords found for project ${project.name} (${project.id}).`);
+        continue;
+      }
       const keywords = keywordsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Keyword));
 
       for (const keyword of keywords) {
@@ -122,12 +124,12 @@ export async function runScanAction(
     }
 
     console.log(
-      `Weekly scan finished. Scanned ${totalKeywordsScanned} keywords for user ${userId}.`
+      `Scan finished. Scanned ${totalKeywordsScanned} keywords for user ${userId}.`
     );
     return { success: true, scannedCount: totalKeywordsScanned };
   } catch (e: any) {
     const errorMessage = e.message || 'An unknown error occurred during the scan.';
-    console.error(`SCAN FAILED: ${errorMessage}`);
+    console.error(`SCAN FAILED for user ${userId}: ${errorMessage}`);
     return { success: false, scannedCount: 0, error: errorMessage };
   }
 }
