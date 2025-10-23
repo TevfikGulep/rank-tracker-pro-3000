@@ -1,7 +1,7 @@
 
 'use server';
 
-import { getKeywordsForProject, getProjects } from './data';
+import { getProjects } from './data';
 import {
   type Firestore,
   doc,
@@ -12,16 +12,14 @@ import {
 import { getJson } from 'serpapi';
 import * as admin from 'firebase-admin';
 import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
+import type { Project, Keyword } from './types';
+
 
 // Helper to initialize the admin app idempotently
 function initializeAdminApp() {
-  // If the app is already initialized, return the existing instance.
-  if (admin.apps.length > 0) {
+  if (admin.apps.length) {
     return admin.app();
   }
-  
-  // Let the SDK automatically find the credentials in the environment.
-  // This is the standard way for App Hosting and other Google Cloud environments.
   return admin.initializeApp();
 }
 
@@ -71,7 +69,6 @@ export async function runScanAction(
     return { success: false, scannedCount: 0, error: message };
   }
 
-  // We need a server-side firestore instance
   let db: admin.firestore.Firestore;
   try {
     const adminApp = initializeAdminApp();
@@ -83,13 +80,14 @@ export async function runScanAction(
   }
 
   try {
-    // Firestore operations with client SDK types require casting for admin SDK
-    const clientDb = db as unknown as Firestore;
-    const allProjects = await getProjects(clientDb, userId);
+    const projectsSnapshot = await db.collection(`users/${userId}/projects`).get();
+    const allProjects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+    
     let totalKeywordsScanned = 0;
 
     for (const project of allProjects) {
-      const keywords = await getKeywordsForProject(clientDb, userId, project.id);
+      const keywordsSnapshot = await db.collection(`users/${userId}/projects/${project.id}/keywords`).get();
+      const keywords = keywordsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Keyword));
 
       for (const keyword of keywords) {
         console.log(
@@ -104,22 +102,16 @@ export async function runScanAction(
         );
 
         const newHistoryEntry = {
-          date: Timestamp.fromDate(new Date()),
+          date: admin.firestore.Timestamp.fromDate(new Date()),
           rank: newRank,
         };
 
-        const keywordRef = doc(
-          clientDb,
-          'users',
-          userId,
-          'projects',
-          project.id,
-          'keywords',
-          keyword.id
+        const keywordRef = db.doc(
+          `users/${userId}/projects/${project.id}/keywords/${keyword.id}`
         );
 
-        await updateDoc(keywordRef, {
-          history: arrayUnion(newHistoryEntry),
+        await keywordRef.update({
+          history: admin.firestore.FieldValue.arrayUnion(newHistoryEntry),
         });
 
         console.log(
