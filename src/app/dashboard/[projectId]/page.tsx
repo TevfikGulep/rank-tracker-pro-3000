@@ -1,4 +1,3 @@
-
 "use client"
 
 import { getKeywordsForProject, getProject, addKeyword as addKeywordToDb, deleteKeyword as deleteKeywordFromDb, updateKeyword as updateKeywordInDb } from "@/lib/data"
@@ -11,50 +10,18 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Play } from "lucide-react"
+import { PlusCircle } from "lucide-react"
 import { KeywordTable } from "./keyword-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect, useState, useCallback, useTransition } from "react"
+import { useEffect, useState, useCallback } from "react"
 import type { Project, Keyword } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { KeywordDialog } from "./add-keyword-dialog"
 import { countries } from "@/lib/data"
 import { useFirebase } from "@/firebase"
 import type { User } from "firebase/auth"
-import { runScanAction } from "@/lib/actions"
 
 type KeywordFormData = Omit<Keyword, 'id' | 'history' | 'projectId'>;
-
-function ScanButton() {
-  const [isPending, startTransition] = useTransition();
-  const { toast } = useToast();
-
-  const handleScan = () => {
-    startTransition(async () => {
-      const result = await runScanAction();
-      if (result.success) {
-        toast({
-          title: "Tarama Başarılı",
-          description: result.message,
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Tarama Başarısız",
-          description: result.message,
-        });
-      }
-    });
-  };
-
-  return (
-    <Button onClick={handleScan} disabled={isPending} variant="outline">
-      <Play className="mr-2 h-4 w-4" />
-      {isPending ? "Taranıyor..." : "Taramayı Başlat"}
-    </Button>
-  );
-}
-
 
 export default function ProjectPage() {
   const params = useParams();
@@ -163,7 +130,6 @@ export default function ProjectPage() {
             <p className="text-muted-foreground">{project.domain}</p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2">
-            <ScanButton />
             <Select defaultValue="Türkiye">
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Ülke Seçin" />
