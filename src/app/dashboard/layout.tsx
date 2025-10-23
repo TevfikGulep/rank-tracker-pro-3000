@@ -17,54 +17,37 @@ import { UserNav } from "@/components/user-nav"
 import { getProjects } from "@/lib/data" 
 import { Separator } from "@/components/ui/separator"
 import { useFirebase } from "@/firebase";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import type { Project } from "@/lib/types";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, firestore: db, isUserLoading: authLoading } = useFirebase();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [redirecting, setRedirecting] = useState(false);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     if (!authLoading) {
       if (user && db) {
-        getProjects(db, user.uid).then(userProjects => {
-          setProjects(userProjects);
-          // If the user is on the main dashboard page and has projects, redirect to the first one.
-          if (pathname === '/dashboard' && userProjects.length > 0) {
-            setRedirecting(true);
-            router.replace(`/dashboard/${userProjects[0].id}`);
-          } else {
-             setIsLoading(false);
-          }
-        });
+        getProjects(db, user.uid)
+          .then(userProjects => {
+            setProjects(userProjects);
+          })
+          .finally(() => {
+            setIsLoading(false);
+          });
       } else {
         router.replace("/login");
       }
     }
-  }, [user, db, authLoading, router, pathname]);
-
-  useEffect(() => {
-    // If we have projects and we are no longer on the root dashboard, stop redirecting state
-    if (projects.length > 0 && pathname !== '/dashboard') {
-      setIsLoading(false);
-      setRedirecting(false);
-    }
-    // If there are no projects, we are not loading anymore.
-    if (projects.length === 0) {
-       setIsLoading(false);
-    }
-  }, [pathname, projects]);
-
+  }, [user, db, authLoading, router]);
 
   const handleProjectCreated = (newProject: Project) => {
     setProjects(prevProjects => [...prevProjects, newProject]);
+    router.push(`/dashboard/${newProject.id}`);
   };
 
-  if (authLoading || isLoading || redirecting) {
+  if (authLoading || isLoading) {
     return <div className="flex h-screen w-full items-center justify-center">Yükleniyor...</div>;
   }
   
