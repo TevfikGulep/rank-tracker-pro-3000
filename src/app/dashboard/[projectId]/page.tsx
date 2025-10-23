@@ -32,6 +32,14 @@ function ScanButton({ user, onScanComplete }: { user: User, onScanComplete: () =
 
   const handleScan = () => {
     startTransition(async () => {
+      if (!user) {
+        toast({
+          variant: "destructive",
+          title: "Hata",
+          description: "Tarama yapmak için giriş yapmalısınız.",
+        });
+        return;
+      }
       const result = await runScanAction(user.uid);
       if (result.success) {
         toast({
@@ -76,19 +84,31 @@ export default function ProjectPage({
   const { toast } = useToast();
 
   const loadData = useCallback(async () => {
-    if (!authLoading && user && db) {
+    // Ensure user and db are available before fetching data
+    if (user && db) {
       setIsLoading(true);
-      const projectData = await getProject(db, user.uid, projectId);
-      if (!projectData) {
-        notFound();
-        return;
+      try {
+        const projectData = await getProject(db, user.uid, projectId);
+        if (!projectData) {
+          notFound();
+          return;
+        }
+        const keywordsData = await getKeywordsForProject(db, user.uid, projectId);
+        setProject(projectData);
+        setKeywords(keywordsData);
+      } catch (error) {
+        console.error("Failed to load data:", error);
+        toast({ variant: "destructive", title: "Veri Yüklenemedi", description: "Veri yüklenirken bir hata oluştu." });
+        // Optionally, redirect or show an error state
+      } finally {
+        setIsLoading(false);
       }
-      const keywordsData = await getKeywordsForProject(db, user.uid, projectId);
-      setProject(projectData);
-      setKeywords(keywordsData);
+    } else if (!authLoading) {
+      // If auth is not loading and we still don't have a user, it's safe to assume they are not logged in.
+      // The layout should handle the redirect, but this is a safeguard.
       setIsLoading(false);
     }
-  }, [projectId, authLoading, user, db]);
+  }, [projectId, user, db, authLoading, toast]);
 
 
   useEffect(() => {
@@ -138,8 +158,15 @@ export default function ProjectPage({
     setIsDialogOpen(true);
   };
 
-  if (isLoading || !project || !user || !db) {
+  if (isLoading || authLoading) {
     return <div className="flex h-full flex-1 items-center justify-center">Yükleniyor...</div>;
+  }
+  
+  // If not loading and there's no project, it means data fetch failed or project not found
+  if (!project || !user) {
+    // The layout will redirect unauthenticated users. If we are here without a user, something is wrong.
+    // Or, the project wasn't found by notFound(). Let's show a clear message.
+    return <div className="flex h-full flex-1 items-center justify-center">Proje yüklenemedi veya bulunamadı.</div>;
   }
   
   return (
