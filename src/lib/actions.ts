@@ -3,43 +3,50 @@
 
 import * as admin from 'firebase-admin';
 import { getJson } from "serpapi";
-import * as path from 'path';
-import * as fs from 'fs';
 
 // Helper function to safely initialize Firebase Admin
 function initializeFirebaseAdmin() {
   console.log("--- initializeFirebaseAdmin: Başlatılıyor ---");
+
+  // Önce uygulamanın zaten başlatılıp başlatılmadığını kontrol edin
+  if (admin.apps.length > 0) {
+    console.log("OK: Firebase Admin zaten başlatılmış.");
+    return admin.firestore();
+  }
+
   try {
-    // If the app is already initialized, return the existing firestore instance.
-    if (admin.apps.length > 0) {
-      console.log("OK: Firebase Admin zaten başlatılmış.");
-      return admin.firestore();
+    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+
+    if (!serviceAccountString) {
+      console.error("--- initializeFirebaseAdmin: KRİTİK HATA ---");
+      throw new Error("Sunucu yapılandırması eksik: FIREBASE_SERVICE_ACCOUNT ortam değişkeni bulunamadı veya boş.");
     }
+    console.log("OK: FIREBASE_SERVICE_ACCOUNT ortam değişkeni bulundu.");
 
-    // --- YENİ YAKLAŞIM: service-account.json dosyasını kullanarak başlatma ---
-    console.log("OK: 'service-account.json' dosyası aranıyor...");
-    const serviceAccountPath = path.resolve(process.cwd(), 'service-account.json');
-
-    if (!fs.existsSync(serviceAccountPath)) {
-        console.error("--- initializeFirebaseAdmin: KRİTİK HATA ---");
-        throw new Error("Sunucu yapılandırması eksik: 'service-account.json' dosyası bulunamadı.");
+    let serviceAccount;
+    try {
+      serviceAccount = JSON.parse(serviceAccountString);
+    } catch (e) {
+      console.error("--- initializeFirebaseAdmin: KRİTİK HATA ---");
+      throw new Error("FIREBASE_SERVICE_ACCOUNT ortam değişkeni geçerli bir JSON değil.");
     }
     
-    console.log("OK: 'service-account.json' dosyası bulundu. SDK başlatılıyor...");
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-
+    console.log("OK: Ortam değişkeni başarıyla JSON olarak ayrıştırıldı. SDK başlatılıyor...");
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
     
-    console.log("OK: Firebase Admin, servis hesabı dosyasıyla başarıyla başlatıldı.");
+    console.log("OK: Firebase Admin, ortam değişkenindeki servis hesabıyla başarıyla başlatıldı.");
     return admin.firestore();
 
   } catch (error: any) {
     console.error("--- initializeFirebaseAdmin: KRİTİK HATA ---");
     console.error("Hata Mesajı:", error.message);
-    console.error("Hata Yığını:", error.stack);
-    // Re-throw a more user-friendly error.
+    // Hatanın yığınını loglayarak daha fazla detay alın
+    if (error.stack) {
+      console.error("Hata Yığını:", error.stack);
+    }
+    // Orijinal hatayı yeniden fırlatmak yerine daha anlaşılır bir hata fırlatın
     throw new Error(`Firebase Admin başlatılamadı: ${error.message}`);
   }
 }
@@ -75,7 +82,6 @@ async function getRankForKeyword(keyword: string, domain: string, country: strin
     } catch (error: any) {
         console.error(`--- getRankForKeyword: HATA ('${keyword}') ---`);
         console.error("Hata Mesajı:", error.message);
-        // Do not re-throw, just return null to allow other keywords to be processed
         return null;
     }
 }
@@ -98,11 +104,10 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
         for (const userDoc of usersSnapshot.docs) {
             console.log(`--- Kullanıcı işleniyor: ${userDoc.id} ---`);
             
-            console.log(`Adım 2: '${userDoc.id}' kullanıcısının projeleri getiriliyor...`);
             const projectsSnapshot = await userDoc.ref.collection('projects').get();
              if (projectsSnapshot.empty) {
                 console.log("UYARI: Bu kullanıcı için hiç proje bulunamadı.");
-                continue; // Skip to the next user
+                continue;
             }
             console.log(`OK: ${projectsSnapshot.docs.length} proje bulundu.`);
 
@@ -110,11 +115,10 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
                 const projectData = projectDoc.data();
                 console.log(`--- Proje işleniyor: ${projectDoc.id} (${projectData.name}) ---`);
 
-                console.log(`Adım 3: '${projectDoc.id}' projesinin anahtar kelimeleri getiriliyor...`);
                 const keywordsSnapshot = await projectDoc.ref.collection('keywords').get();
                 if (keywordsSnapshot.empty) {
                     console.log("UYARI: Bu proje için hiç anahtar kelime bulunamadı.");
-                    continue; // Skip to the next project
+                    continue;
                 }
                 console.log(`OK: ${keywordsSnapshot.docs.length} anahtar kelime bulundu.`);
 
@@ -129,11 +133,10 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
                         rank: rank,
                     };
 
-                    console.log(`Adım 4: '${keywordDoc.id}' için yeni sıralama verisi kaydediliyor...`);
                     await keywordDoc.ref.update({
                         history: admin.firestore.FieldValue.arrayUnion(newHistoryRecord)
                     });
-                    console.log("OK: Sıralama verisi başarıyla kaydedildi.");
+                    console.log(`OK: '${keywordDoc.id}' için sıralama verisi başarıyla kaydedildi.`);
 
                     totalScannedKeywords++;
                 }
@@ -147,9 +150,10 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
 
     } catch (error: any) {
         console.error("--- runScanAction: KRİTİK HATA ---");
-        console.error("Hata Türü:", error.constructor.name);
         console.error("Hata Mesajı:", error.message);
-        console.error("Hata Yığını:", error.stack);
+        if (error.stack) {
+            console.error("Hata Yığını:", error.stack);
+        }
         const errorMessage = `Tarama işlemi sırasında bir hata oluştu: ${error.message}`;
         return { success: false, message: errorMessage, error: errorMessage };
     } finally {
