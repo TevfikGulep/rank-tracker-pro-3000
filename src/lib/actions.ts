@@ -13,29 +13,17 @@ import { getJson } from 'serpapi';
 import * as admin from 'firebase-admin';
 import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
 
-
-// Helper to initialize the admin app
+// Helper to initialize the admin app idempotently
 function initializeAdminApp() {
+  // If the app is already initialized, return the existing instance.
   if (admin.apps.length > 0) {
-    return admin.apps[0]!;
+    return admin.app();
   }
-
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
   
-  if (!serviceAccount) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set. This is required for server-side admin actions.');
-  }
-
-  try {
-    const serviceAccountJson = JSON.parse(serviceAccount);
-    return admin.initializeApp({
-      credential: admin.credential.cert(serviceAccountJson),
-    });
-  } catch (error: any) {
-    throw new Error(`Failed to parse FIREBASE_SERVICE_ACCOUNT: ${error.message}`);
-  }
+  // Let the SDK automatically find the credentials in the environment.
+  // This is the standard way for App Hosting and other Google Cloud environments.
+  return admin.initializeApp();
 }
-
 
 // Helper function to get rank
 async function getGoogleRank(
@@ -84,22 +72,24 @@ export async function runScanAction(
   }
 
   // We need a server-side firestore instance
-  let db: Firestore;
+  let db: admin.firestore.Firestore;
   try {
     const adminApp = initializeAdminApp();
-    db = getAdminFirestore(adminApp) as unknown as Firestore;
+    db = getAdminFirestore(adminApp);
   } catch (e: any) {
-    console.error(`SCAN FAILED: Could not initialize Firebase Admin. ${e.message}`);
-    return { success: false, scannedCount: 0, error: `Could not initialize Firebase Admin: ${e.message}` };
+    const errorMessage = `Could not initialize Firebase Admin. This is required for server-side admin actions. Error: ${e.message}`;
+    console.error(`SCAN FAILED: ${errorMessage}`);
+    return { success: false, scannedCount: 0, error: errorMessage };
   }
 
-
   try {
-    const allProjects = await getProjects(db, userId);
+    // Firestore operations with client SDK types require casting for admin SDK
+    const clientDb = db as unknown as Firestore;
+    const allProjects = await getProjects(clientDb, userId);
     let totalKeywordsScanned = 0;
 
     for (const project of allProjects) {
-      const keywords = await getKeywordsForProject(db, userId, project.id);
+      const keywords = await getKeywordsForProject(clientDb, userId, project.id);
 
       for (const keyword of keywords) {
         console.log(
@@ -119,7 +109,7 @@ export async function runScanAction(
         };
 
         const keywordRef = doc(
-          db,
+          clientDb,
           'users',
           userId,
           'projects',
