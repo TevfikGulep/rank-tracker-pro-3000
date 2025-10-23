@@ -8,30 +8,24 @@ import { getJson } from "serpapi";
 function initializeFirebaseAdmin() {
   console.log("--- initializeFirebaseAdmin: Başlatılıyor ---");
   try {
+    // If the app is already initialized, return the existing firestore instance.
     if (admin.apps.length > 0) {
-      console.log("UYARI: Firebase Admin zaten başlatılmış.");
+      console.log("OK: Firebase Admin zaten başlatılmış.");
       return admin.firestore();
     }
 
-    // Ortam değişkenini kontrol et
-    if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-      console.error("KRİTİK HATA: FIREBASE_SERVICE_ACCOUNT ortam değişkeni ayarlanmamış!");
-      throw new Error("Sunucu yapılandırması eksik: Servis hesabı anahtarı bulunamadı.");
-    }
-    
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    console.log("OK: Servis hesabı JSON'u başarıyla ayrıştırıldı.");
-
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
+    // Initialize the Admin SDK without parameters.
+    // In a managed environment like App Hosting, it will automatically find the credentials.
+    console.log("OK: Firebase Admin parametresiz olarak başlatılıyor...");
+    admin.initializeApp();
 
     console.log("OK: Firebase Admin başarıyla başlatıldı.");
     return admin.firestore();
   } catch (error: any) {
-    console.error("--- initializeFirebaseAdmin: HATA ---");
+    console.error("--- initializeFirebaseAdmin: KRİTİK HATA ---");
     console.error("Hata Mesajı:", error.message);
     console.error("Hata Yığını:", error.stack);
+    // Re-throw a more user-friendly error.
     throw new Error(`Firebase Admin başlatılamadı: ${error.message}`);
   }
 }
@@ -51,6 +45,7 @@ async function getRankForKeyword(keyword: string, domain: string, country: strin
             q: keyword,
             location: country,
             api_key: serpApiKey,
+            num: 100, // Check top 100 results
         });
 
         const organicResults = response.organic_results;
@@ -61,12 +56,11 @@ async function getRankForKeyword(keyword: string, domain: string, country: strin
 
         const rank = organicResults.findIndex(result => result.link && result.link.includes(domain)) + 1;
         
-        console.log(`OK: '${keyword}' için sıra bulundu: ${rank > 0 ? rank : 'Bulunamadı'}`);
+        console.log(`OK: '${keyword}' için sıra bulundu: ${rank > 0 ? rank : 'Bulunamadı (İlk 100 içinde değil)'}`);
         return rank > 0 ? rank : null;
     } catch (error: any) {
         console.error(`--- getRankForKeyword: HATA ('${keyword}') ---`);
         console.error("Hata Mesajı:", error.message);
-        console.error("SERP API'den gelen yanıt:", error.response?.data);
         // Do not re-throw, just return null to allow other keywords to be processed
         return null;
     }
@@ -81,13 +75,21 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
 
         console.log("Adım 1: Kullanıcılar getiriliyor...");
         const usersSnapshot = await db.collection('users').get();
-        console.log(`OK: ${usersSnapshot.docs.length} kullanıcı bulundu.`);
+        if (usersSnapshot.empty) {
+            console.log("UYARI: Hiç kullanıcı bulunamadı.");
+        } else {
+            console.log(`OK: ${usersSnapshot.docs.length} kullanıcı bulundu.`);
+        }
 
         for (const userDoc of usersSnapshot.docs) {
             console.log(`--- Kullanıcı işleniyor: ${userDoc.id} ---`);
             
             console.log(`Adım 2: '${userDoc.id}' kullanıcısının projeleri getiriliyor...`);
             const projectsSnapshot = await userDoc.ref.collection('projects').get();
+             if (projectsSnapshot.empty) {
+                console.log("UYARI: Bu kullanıcı için hiç proje bulunamadı.");
+                continue; // Skip to the next user
+            }
             console.log(`OK: ${projectsSnapshot.docs.length} proje bulundu.`);
 
             for (const projectDoc of projectsSnapshot.docs) {
@@ -96,6 +98,10 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
 
                 console.log(`Adım 3: '${projectDoc.id}' projesinin anahtar kelimeleri getiriliyor...`);
                 const keywordsSnapshot = await projectDoc.ref.collection('keywords').get();
+                if (keywordsSnapshot.empty) {
+                    console.log("UYARI: Bu proje için hiç anahtar kelime bulunamadı.");
+                    continue; // Skip to the next project
+                }
                 console.log(`OK: ${keywordsSnapshot.docs.length} anahtar kelime bulundu.`);
 
                 for (const keywordDoc of keywordsSnapshot.docs) {
