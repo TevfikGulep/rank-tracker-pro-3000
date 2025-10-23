@@ -84,28 +84,28 @@ export default function ProjectPage({
   const { toast } = useToast();
 
   const loadData = useCallback(async () => {
-    // Ensure user and db are available before fetching data
-    if (user && db) {
-      setIsLoading(true);
-      try {
-        const projectData = await getProject(db, user.uid, projectId);
-        if (!projectData) {
-          notFound();
-          return;
-        }
-        const keywordsData = await getKeywordsForProject(db, user.uid, projectId);
-        setProject(projectData);
-        setKeywords(keywordsData);
-      } catch (error) {
-        console.error("Failed to load data:", error);
-        toast({ variant: "destructive", title: "Veri Yüklenemedi", description: "Veri yüklenirken bir hata oluştu." });
-        // Optionally, redirect or show an error state
-      } finally {
-        setIsLoading(false);
+    if (!user || !db) {
+      // If auth is still loading, wait for the next run.
+      if (authLoading) return;
+      // If auth is done and still no user, something is wrong, but avoid fetching.
+      setIsLoading(false);
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const projectData = await getProject(db, user.uid, projectId);
+      if (!projectData) {
+        notFound();
+        return;
       }
-    } else if (!authLoading) {
-      // If auth is not loading and we still don't have a user, it's safe to assume they are not logged in.
-      // The layout should handle the redirect, but this is a safeguard.
+      const keywordsData = await getKeywordsForProject(db, user.uid, projectId);
+      setProject(projectData);
+      setKeywords(keywordsData);
+    } catch (error) {
+      console.error("Failed to load data:", error);
+      toast({ variant: "destructive", title: "Veri Yüklenemedi", description: "Veri yüklenirken bir hata oluştu." });
+    } finally {
       setIsLoading(false);
     }
   }, [projectId, user, db, authLoading, toast]);
@@ -162,11 +162,8 @@ export default function ProjectPage({
     return <div className="flex h-full flex-1 items-center justify-center">Yükleniyor...</div>;
   }
   
-  // If not loading and there's no project, it means data fetch failed or project not found
   if (!project || !user) {
-    // The layout will redirect unauthenticated users. If we are here without a user, something is wrong.
-    // Or, the project wasn't found by notFound(). Let's show a clear message.
-    return <div className="flex h-full flex-1 items-center justify-center">Proje yüklenemedi veya bulunamadı.</div>;
+    return <div className="flex h-full flex-1 items-center justify-center">Proje yüklenemedi veya bulunamadı. Lütfen giriş yaptığınızdan ve projenin mevcut olduğundan emin olun.</div>;
   }
   
   return (
