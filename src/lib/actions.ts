@@ -3,6 +3,8 @@
 
 import * as admin from 'firebase-admin';
 import { getJson } from "serpapi";
+import * as path from 'path';
+import * as fs from 'fs';
 
 // Helper function to safely initialize Firebase Admin
 function initializeFirebaseAdmin() {
@@ -14,13 +16,25 @@ function initializeFirebaseAdmin() {
       return admin.firestore();
     }
 
-    // Initialize the Admin SDK without parameters.
-    // In a managed environment like App Hosting, it will automatically find the credentials.
-    console.log("OK: Firebase Admin parametresiz olarak başlatılıyor...");
-    admin.initializeApp();
+    // --- YENİ YAKLAŞIM: service-account.json dosyasını kullanarak başlatma ---
+    console.log("OK: 'service-account.json' dosyası aranıyor...");
+    const serviceAccountPath = path.resolve(process.cwd(), 'service-account.json');
 
-    console.log("OK: Firebase Admin başarıyla başlatıldı.");
+    if (!fs.existsSync(serviceAccountPath)) {
+        console.error("--- initializeFirebaseAdmin: KRİTİK HATA ---");
+        throw new Error("Sunucu yapılandırması eksik: 'service-account.json' dosyası bulunamadı.");
+    }
+    
+    console.log("OK: 'service-account.json' dosyası bulundu. SDK başlatılıyor...");
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    
+    console.log("OK: Firebase Admin, servis hesabı dosyasıyla başarıyla başlatıldı.");
     return admin.firestore();
+
   } catch (error: any) {
     console.error("--- initializeFirebaseAdmin: KRİTİK HATA ---");
     console.error("Hata Mesajı:", error.message);
@@ -54,7 +68,7 @@ async function getRankForKeyword(keyword: string, domain: string, country: strin
             return null;
         }
 
-        const rank = organicResults.findIndex(result => result.link && result.link.includes(domain)) + 1;
+        const rank = organicResults.findIndex((result: any) => result.link && result.link.includes(domain)) + 1;
         
         console.log(`OK: '${keyword}' için sıra bulundu: ${rank > 0 ? rank : 'Bulunamadı (İlk 100 içinde değil)'}`);
         return rank > 0 ? rank : null;
