@@ -7,16 +7,13 @@ import type { Project, Keyword } from './types';
 
 // Helper to initialize the admin app idempotently
 function initializeAdminApp() {
+  // If the admin app is already initialized, return it.
   if (admin.apps.length) {
     return admin.app();
   }
-  // Explicitly use environment variables for credentials and database URL
-  // This is more reliable in serverless environments like App Hosting.
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
-  return admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
-  });
+  // Otherwise, initialize the app. In a managed environment like App Hosting,
+  // initializeApp() will automatically use Application Default Credentials.
+  return admin.initializeApp();
 }
 
 // Helper function to get rank
