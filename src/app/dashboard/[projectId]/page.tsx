@@ -11,63 +11,18 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, ScanLine } from "lucide-react"
+import { PlusCircle } from "lucide-react"
 import { KeywordTable } from "./keyword-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect, useState, useTransition, useCallback } from "react"
+import { useEffect, useState, useCallback } from "react"
 import type { Project, Keyword } from "@/lib/types"
-import { runScanAction } from "@/lib/actions"
 import { useToast } from "@/hooks/use-toast"
 import { KeywordDialog } from "./add-keyword-dialog"
 import { countries } from "@/lib/data"
 import { useFirebase } from "@/firebase"
-import type { Firestore } from "firebase/firestore"
 import type { User } from "firebase/auth"
 
 type KeywordFormData = Omit<Keyword, 'id' | 'history' | 'projectId'>;
-
-function ScanButton({ user, onScanComplete }: { user: User, onScanComplete: () => void }) {
-  const [isPending, startTransition] = useTransition();
-  const { toast } = useToast();
-
-  const handleScan = () => {
-    startTransition(async () => {
-      if (!user) {
-        toast({
-          variant: "destructive",
-          title: "Hata",
-          description: "Tarama yapmak için giriş yapmalısınız.",
-        });
-        return;
-      }
-      const result = await runScanAction(user.uid);
-      if (result.success) {
-        toast({
-          title: "Tarama Başarılı",
-          description: `${result.scannedCount} anahtar kelime başarıyla tarandı.`,
-        });
-        onScanComplete();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Tarama Başarısız",
-          description: result.error || "Bilinmeyen bir hata oluştu.",
-        });
-      }
-    });
-  };
-
-  return (
-    <Button
-      variant="outline"
-      onClick={handleScan}
-      disabled={isPending}
-    >
-      <ScanLine className="mr-2 h-4 w-4" />
-      {isPending ? "Taranıyor..." : "Haftalık Taramayı Çalıştır"}
-    </Button>
-  )
-}
 
 export default function ProjectPage() {
   const params = useParams();
@@ -192,7 +147,6 @@ export default function ProjectPage() {
               <PlusCircle className="mr-2 h-4 w-4" />
               Anahtar Kelime Ekle
             </Button>
-            <ScanButton user={user} onScanComplete={loadData} />
           </div>
         </div>
         <Card className="flex-1 flex flex-col">
