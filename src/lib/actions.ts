@@ -29,6 +29,7 @@ async function getRankForKeyword(
 ): Promise<number | null> {
   if (!process.env.SERPAPI_KEY) {
     console.error('SERPAPI_KEY environment variable is not set.');
+    // In a real app, you might want to throw an error or handle this differently
     return null;
   }
   try {
@@ -57,24 +58,26 @@ export async function runScanAction() {
     const usersSnapshot = await db.collection('users').get();
     if (usersSnapshot.empty) {
       console.log('No users found.');
-      return { success: true, message: 'No users to scan.' };
+      return { success: true, message: 'Taranacak kullanıcı bulunamadı.' };
     }
 
     let totalKeywordsScanned = 0;
 
-    for (const userDoc of usersSnapshot.docs) {
-      const userId = userDoc.id;
+    // Use Promise.all to run scans in parallel for all users
+    await Promise.all(usersSnapshot.docs.map(async (userDoc) => {
       const projectsSnapshot = await userDoc.ref.collection('projects').get();
       
-      if (projectsSnapshot.empty) continue;
+      if (projectsSnapshot.empty) return;
 
-      for (const projectDoc of projectsSnapshot.docs) {
+      // Use Promise.all for all projects of a user
+      await Promise.all(projectsSnapshot.docs.map(async (projectDoc) => {
         const project = projectDoc.data();
         const keywordsSnapshot = await projectDoc.ref.collection('keywords').get();
 
-        if (keywordsSnapshot.empty) continue;
+        if (keywordsSnapshot.empty) return;
 
-        for (const keywordDoc of keywordsSnapshot.docs) {
+        // Use Promise.all for all keywords of a project
+        await Promise.all(keywordsSnapshot.docs.map(async (keywordDoc) => {
           const keyword = keywordDoc.data();
           const rank = await getRankForKeyword(
             keyword.name,
@@ -89,18 +92,20 @@ export async function runScanAction() {
             rank: rank,
           };
 
+          // It's safe to update the document here, as Promises will handle concurrency.
           await keywordDoc.ref.update({
             history: admin.firestore.FieldValue.arrayUnion(newHistoryEntry),
           });
-        }
-      }
-    }
+        }));
+      }));
+    }));
 
     const message = `Tarama tamamlandı. ${totalKeywordsScanned} anahtar kelime güncellendi.`;
     return { success: true, message };
 
   } catch (error: any) {
     console.error('An error occurred during the scan:', error);
+    // Return a more specific error message to the client
     return {
       success: false,
       message: `Tarama Başarısız: ${error.message}`,
