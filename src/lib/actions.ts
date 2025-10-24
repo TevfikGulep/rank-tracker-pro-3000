@@ -3,6 +3,7 @@
 
 import * as admin from 'firebase-admin';
 import { getJson } from "serpapi";
+import { ServiceAccount } from 'firebase-admin';
 
 // Helper function to safely initialize Firebase Admin
 function initializeFirebaseAdmin() {
