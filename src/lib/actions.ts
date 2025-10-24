@@ -12,9 +12,11 @@ function initializeFirebaseAdmin() {
 
   try {
     // App Hosting provides the service account credentials via an environment variable.
+    // This is the recommended and secure way.
     const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (!serviceAccountString) {
-      throw new Error('FIREBASE_SERVICE_ACCOUNT ortam değişkeni bulunamadı veya boş.');
+      // This error will be thrown if the secret is not set in the App Hosting backend.
+      throw new Error('FIREBASE_SERVICE_ACCOUNT ortam değişkeni bulunamadı veya boş. Lütfen App Hosting arka ucunda ayarlayın.');
     }
     
     const serviceAccount = JSON.parse(serviceAccountString);
@@ -33,6 +35,7 @@ function initializeFirebaseAdmin() {
 
 // New function using Google Custom Search JSON API
 async function getRankForKeyword(keyword: string, domain: string): Promise<number | null> {
+    // These values are expected to be set as environment variables in the App Hosting backend.
     const apiKey = process.env.GOOGLE_API_KEY;
     const searchEngineId = process.env.CUSTOM_SEARCH_ENGINE_ID;
 

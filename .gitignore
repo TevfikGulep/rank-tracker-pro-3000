@@ -1,31 +1,29 @@
-# Dependencies
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
 /node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
 
-# Next.js
-/.next/
-/out/
+# testing
+/coverage
 
-# Production
+# production
 /build
 
-# Local Environment Variables
-.env*.local
-.env
+# misc
+.DS_Store
+*.pem
 
-# Service Account Keys
-service-account.json
-
-# Log files
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
 
-# Editor directories and files
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# local env files
+.env*.local
+.env
+
+# App Hosting secrets
+service-account.json
