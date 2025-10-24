@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle, Loader } from "lucide-react"
 import { KeywordTable } from "./keyword-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect, useState, useCallback, useTransition } from "react"
+import { useEffect, useState, useCallback, useTransition, useMemo } from "react"
 import type { Project, Keyword } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { KeywordDialog } from "./add-keyword-dialog"
@@ -22,14 +22,19 @@ import { countries } from "@/lib/data"
 import { useFirebase } from "@/firebase"
 import type { User } from "firebase/auth"
 import { runScanAction } from "@/lib/actions"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { differenceInDays, formatDistanceToNow } from "date-fns"
+import { tr } from "date-fns/locale"
 
 type KeywordFormData = Omit<Keyword, 'id' | 'history' | 'projectId'>;
 
 interface ScanButtonProps {
   onScanComplete: () => void;
+  disabled: boolean;
+  tooltip: string;
 }
 
-function ScanButton({ onScanComplete }: ScanButtonProps) {
+function ScanButton({ onScanComplete, disabled, tooltip }: ScanButtonProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -54,9 +59,9 @@ function ScanButton({ onScanComplete }: ScanButtonProps) {
       }
     });
   };
-
-  return (
-    <Button onClick={handleScan} disabled={isPending} variant="outline">
+  
+  const button = (
+     <Button onClick={handleScan} disabled={disabled || isPending} variant="outline" className="w-full sm:w-auto">
       {isPending ? (
         <>
           <Loader className="mr-2 h-4 w-4 animate-spin" />
@@ -66,7 +71,24 @@ function ScanButton({ onScanComplete }: ScanButtonProps) {
         "Taramayı Başlat"
       )}
     </Button>
-  );
+  )
+
+  if (disabled) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="w-full sm:w-auto">{button}</div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
+  return button;
 }
 
 
@@ -112,6 +134,39 @@ export default function ProjectPage() {
       loadData();
     }
   }, [user, db, projectId, loadData]);
+
+  const lastScanInfo = useMemo(() => {
+    if (keywords.length === 0) {
+      return { canScan: true, tooltip: "Tarama yapabilirsiniz." };
+    }
+
+    let lastScanDate: Date | null = null;
+    keywords.forEach(keyword => {
+      if (keyword.history.length > 0) {
+        const latestHistoryDate = new Date(keyword.history[keyword.history.length - 1].date);
+        if (!lastScanDate || latestHistoryDate > lastScanDate) {
+          lastScanDate = latestHistoryDate;
+        }
+      }
+    });
+
+    if (!lastScanDate) {
+      return { canScan: true, tooltip: "Tarama yapabilirsiniz." };
+    }
+
+    const daysSinceLastScan = differenceInDays(new Date(), lastScanDate);
+
+    if (daysSinceLastScan < 7) {
+      const timeAgo = formatDistanceToNow(lastScanDate, { addSuffix: true, locale: tr });
+      return {
+        canScan: false,
+        tooltip: `Son tarama ${timeAgo} yapıldı. 7 günde bir tarama yapabilirsiniz.`
+      };
+    }
+
+    return { canScan: true, tooltip: "Tarama yapabilirsiniz." };
+  }, [keywords]);
+
 
   const handleDialogSubmit = async (formData: KeywordFormData) => {
     if (!user || !db) return;
@@ -179,7 +234,7 @@ export default function ProjectPage() {
             <p className="text-muted-foreground">{project.domain}</p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2">
-            <ScanButton onScanComplete={loadData} />
+            <ScanButton onScanComplete={loadData} disabled={!lastScanInfo.canScan} tooltip={lastScanInfo.tooltip} />
             <Select defaultValue="Türkiye">
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Ülke Seçin" />
