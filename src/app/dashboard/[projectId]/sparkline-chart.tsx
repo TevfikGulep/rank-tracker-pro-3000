@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -7,13 +8,14 @@ import {
   Tooltip,
 } from "recharts"
 import type { RankHistory } from "@/lib/types"
+import { format } from "date-fns"
 
 interface SparklineChartProps {
   data: RankHistory[]
 }
 
 export function SparklineChart({ data }: SparklineChartProps) {
-  const chartData = data.slice(-7).map(item => ({ // Only show last 7 days
+  const chartData = data.slice(-90).map(item => ({ // Show last 90 days
     ...item,
     // Invert rank for visual representation (lower rank is better, so higher on chart)
     displayRank: item.rank ? 101 - item.rank : null 
@@ -38,9 +40,14 @@ export function SparklineChart({ data }: SparklineChartProps) {
             fontSize: '12px',
             padding: '4px 8px'
           }}
-          labelStyle={{ color: 'hsl(var(--foreground))' }}
+          labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 'bold' }}
           formatter={(value, name, props) => [props.payload.rank ?? 'N/A', 'Sıra']}
-          labelFormatter={(label) => new Date(label).toLocaleDateString()}
+          labelFormatter={(label, payload) => {
+            if (payload && payload.length > 0 && payload[0].payload.date) {
+              return format(new Date(payload[0].payload.date), "dd MMM yyyy");
+            }
+            return label;
+          }}
         />
         <Line
           type="monotone"
