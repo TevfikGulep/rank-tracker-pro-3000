@@ -81,7 +81,7 @@ async function getRankForKeyword(keyword: string, domain: string, country: strin
     } catch (error: any) {
         console.error(`--- HATA: [Rank Check] ('${keyword}') ---`);
         console.error("Hata Mesajı:", error.message);
-        return null;
+        return null; // Return null on error to not break the entire scan
     }
 }
 
@@ -92,55 +92,50 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
         const db = initializeFirebaseAdmin();
         let totalScannedKeywords = 0;
 
-        console.log("Adım 1: 'users' koleksiyonu getiriliyor...");
-        const usersSnapshot = await db.collection('users').get();
+        console.log("Adım 1: Tüm 'projects' alt koleksiyonları getiriliyor...");
+        const projectsSnapshot = await db.collectionGroup('projects').get();
         
-        if (usersSnapshot.empty) {
-            console.log("UYARI: [Scan Action] Veritabanında hiç kullanıcı bulunamadı. İşlem sonlandırılıyor.");
-            return { success: true, message: "Veritabanında tarayacak kullanıcı bulunamadı.", scannedKeywords: 0 };
+        if (projectsSnapshot.empty) {
+            console.log("UYARI: [Scan Action] Veritabanında hiç proje bulunamadı. İşlem sonlandırılıyor.");
+            return { success: true, message: "Veritabanında taranacak proje bulunamadı.", scannedKeywords: 0 };
         }
         
-        console.log(`OK: [Scan Action] ${usersSnapshot.size} kullanıcı bulundu.`);
+        console.log(`OK: [Scan Action] ${projectsSnapshot.size} proje bulundu.`);
 
-        for (const userDoc of usersSnapshot.docs) {
-            console.log(`--- Kullanıcı işleniyor: ${userDoc.id} ---`);
-            
-            const projectsSnapshot = await userDoc.ref.collection('projects').get();
-             if (projectsSnapshot.empty) {
-                console.log(`UYARI: Kullanıcı ${userDoc.id} için hiç proje bulunamadı.`);
-                continue; // Sonraki kullanıcıya geç
+        for (const projectDoc of projectsSnapshot.docs) {
+            const projectData = projectDoc.data();
+            console.log(`--- Proje işleniyor: ${projectDoc.id} (${projectData.name}) ---`);
+
+            const keywordsSnapshot = await projectDoc.ref.collection('keywords').get();
+            if (keywordsSnapshot.empty) {
+                console.log(`UYARI: Proje ${projectDoc.id} için hiç anahtar kelime bulunamadı.`);
+                continue; // Sonraki projeye geç
             }
-            console.log(`OK: Kullanıcı ${userDoc.id} için ${projectsSnapshot.size} proje bulundu.`);
+            console.log(`OK: Proje ${projectDoc.id} için ${keywordsSnapshot.size} anahtar kelime bulundu.`);
 
-            for (const projectDoc of projectsSnapshot.docs) {
-                const projectData = projectDoc.data();
-                console.log(`--- Proje işleniyor: ${projectDoc.id} (${projectData.name}) ---`);
-
-                const keywordsSnapshot = await projectDoc.ref.collection('keywords').get();
-                if (keywordsSnapshot.empty) {
-                    console.log(`UYARI: Proje ${projectDoc.id} için hiç anahtar kelime bulunamadı.`);
-                    continue; // Sonraki projeye geç
+            for (const keywordDoc of keywordsSnapshot.docs) {
+                const keywordData = keywordDoc.data();
+                console.log(`--- Anahtar kelime taranıyor: ${keywordDoc.id} ('${keywordData.name}') ---`);
+                
+                // Kontrol: Gerekli veriler mevcut mu?
+                if (!keywordData.name || !projectData.domain || !keywordData.country) {
+                    console.warn(`UYARI: Anahtar kelime ${keywordDoc.id} eksik bilgiye sahip, atlanıyor. (Name: ${keywordData.name}, Domain: ${projectData.domain}, Country: ${keywordData.country})`);
+                    continue;
                 }
-                console.log(`OK: Proje ${projectDoc.id} için ${keywordsSnapshot.size} anahtar kelime bulundu.`);
 
-                for (const keywordDoc of keywordsSnapshot.docs) {
-                    const keywordData = keywordDoc.data();
-                    console.log(`--- Anahtar kelime taranıyor: ${keywordDoc.id} ('${keywordData.name}') ---`);
+                const rank = await getRankForKeyword(keywordData.name, projectData.domain, keywordData.country);
+                
+                const newHistoryRecord = {
+                    date: admin.firestore.Timestamp.now(),
+                    rank: rank,
+                };
 
-                    const rank = await getRankForKeyword(keywordData.name, projectData.domain, keywordData.country);
-                    
-                    const newHistoryRecord = {
-                        date: admin.firestore.Timestamp.now(),
-                        rank: rank,
-                    };
+                await keywordDoc.ref.update({
+                    history: admin.firestore.FieldValue.arrayUnion(newHistoryRecord)
+                });
+                console.log(`OK: '${keywordDoc.id}' için sıralama verisi başarıyla kaydedildi.`);
 
-                    await keywordDoc.ref.update({
-                        history: admin.firestore.FieldValue.arrayUnion(newHistoryRecord)
-                    });
-                    console.log(`OK: '${keywordDoc.id}' için sıralama verisi başarıyla kaydedildi.`);
-
-                    totalScannedKeywords++;
-                }
+                totalScannedKeywords++;
             }
         }
         
