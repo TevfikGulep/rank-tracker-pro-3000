@@ -102,7 +102,7 @@ export function KeywordTable({ keywords, onDelete, onEdit }: KeywordTableProps) 
             <TableHead className="text-center">Önceki Sıra</TableHead>
             <TableHead className="text-center">Son Sıra</TableHead>
             <TableHead className="text-center">Değişim</TableHead>
-            <TableHead className="w-[15%] text-center">Trend (7 Gün)</TableHead>
+            <TableHead className="w-[15%] text-center">Trend (90 Gün)</TableHead>
             <TableHead className="text-center">Son Kontrol</TableHead>
             <TableHead className="text-right">Eylemler</TableHead>
           </TableRow>
