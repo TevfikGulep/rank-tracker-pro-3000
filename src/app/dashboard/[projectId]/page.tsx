@@ -277,6 +277,7 @@ export default function ProjectPage() {
             </Button>
           </div>
         </div>
+        
         <Card className="flex-1 flex flex-col">
           <CardHeader>
             <CardTitle>Sıralama Takibi</CardTitle>
@@ -303,5 +304,3 @@ export default function ProjectPage() {
     </>
   )
 }
-
-    

@@ -2,7 +2,6 @@
 'use server'
 
 import * as admin from 'firebase-admin';
-import { getJson } from "serpapi";
 
 // Helper function to safely initialize Firebase Admin
 function initializeFirebaseAdmin() {
@@ -12,13 +11,14 @@ function initializeFirebaseAdmin() {
   }
 
   try {
+    // App Hosting provides the service account credentials via an environment variable.
     const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (!serviceAccountString || serviceAccountString.trim() === '') {
-      throw new Error("Sunucu yapılandırması eksik: FIREBASE_SERVICE_ACCOUNT ortam değişkeni bulunamadı veya boş.");
+    if (!serviceAccountString) {
+      throw new Error('FIREBASE_SERVICE_ACCOUNT ortam değişkeni bulunamadı veya boş.');
     }
     
     const serviceAccount = JSON.parse(serviceAccountString);
-    
+
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
@@ -42,7 +42,7 @@ async function getRankForKeyword(keyword: string, domain: string): Promise<numbe
         throw new Error(errorMessage);
     }
     
-    const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(keyword)}&num=100`;
+    const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(keyword)}`;
 
     try {
         console.log(`'${keyword}' için Google Custom Search API ile sıra aranıyor...`);
@@ -70,67 +70,6 @@ async function getRankForKeyword(keyword: string, domain: string): Promise<numbe
         // On network or other critical errors, return null to not break the entire scan for other keywords
         return null;
     }
-}
-
-
-// Kept for backup or future use
-async function getRankForKeywordSerpApi(keyword: string, domain: string, country: string): Promise<number | null> {
-    try {
-        const serpApiKey = process.env.SERPAPI_KEY;
-        if (!serpApiKey) {
-            console.error("SERPAPI_KEY ortam değişkeni bulunamadı!");
-            throw new Error("SERP API anahtarı eksik.");
-        }
-
-        console.log(`'${keyword}' için '${country}' ülkesinde sıra aranıyor...`);
-        const response = await getJson({
-            engine: "google",
-            q: keyword,
-            location: country,
-            api_key: serpApiKey,
-            num: 100, // Check top 100 results
-        });
-
-        const organicResults = response.organic_results;
-        if (!organicResults || organicResults.length === 0) {
-            console.log(`'${keyword}' için organik sonuç bulunamadı.`);
-            return null;
-        }
-
-        const rank = organicResults.findIndex((result: any) => result.link && result.link.includes(domain)) + 1;
-        
-        console.log(`'${keyword}' için bulunan sıra: ${rank > 0 ? rank : 'Bulunamadı'}.`);
-        return rank > 0 ? rank : null;
-    } catch (error: any) {
-        console.error(`'${keyword}' için sıra alınırken hata oluştu:`, error.message);
-        return null; // Return null on error to not break the entire scan
-    }
-}
-
-function shouldScanKeyword(history: any[]): boolean {
-    if (!history || history.length === 0) {
-        console.log("Geçmiş boş, taranacak.");
-        return true;
-    }
-    
-    const lastScan = history[history.length - 1];
-    
-    if (!lastScan.date || typeof lastScan.date.toDate !== 'function') {
-        console.log("Geçersiz tarih, taranacak.");
-        return true;
-    }
-    
-    const lastScanDate = lastScan.date.toDate();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const isOld = lastScanDate < sevenDaysAgo;
-    if (isOld) {
-        console.log("Son tarama 7 günden eski, taranacak.");
-    } else {
-        console.log("Son tarama 7 günden yeni, atlanacak.");
-    }
-    return isOld;
 }
 
 
@@ -165,8 +104,22 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
                 const keywordData = keywordDoc.data();
                  console.log(`Anahtar kelime kontrol ediliyor: '${keywordData.name}'`);
                 
-                if (!shouldScanKeyword(keywordData.history)) {
-                    console.log(`Anahtar kelime '${keywordData.name}' son 7 gün içinde tarandığı için atlanıyor.`);
+                // Firestore Timestamps need to be handled carefully on the server
+                const history = keywordData.history || [];
+                const lastScan = history.length > 0 ? history[history.length - 1] : null;
+                let shouldScan = true;
+                if (lastScan && lastScan.date) {
+                    // lastScan.date will be a Firestore Timestamp
+                    const lastScanDate = lastScan.date.toDate();
+                    const oneDayAgo = new Date();
+                    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+                    if (lastScanDate > oneDayAgo) {
+                        console.log(`Anahtar kelime '${keywordData.name}' son 24 saat içinde tarandığı için atlanıyor.`);
+                        shouldScan = false;
+                    }
+                }
+
+                if (!shouldScan) {
                     continue;
                 }
 
