@@ -68,18 +68,39 @@ async function getRankForKeyword(keyword: string, domain: string, country: strin
 }
 
 function shouldScanKeyword(history: any[]): boolean {
+    // 1. Henüz hiç taranmamışsa (geçmişi boşsa) kesinlikle tara.
     if (!history || history.length === 0) {
-        return true; // Henüz hiç taranmamış, bu yüzden tara.
+        console.log("Geçmiş boş, taranacak.");
+        return true; 
     }
+    
     const lastScan = history[history.length - 1];
-    if (!lastScan.date || typeof lastScan.date.toDate !== 'function') {
-        return true; // Geçersiz tarih formatı, tedbiren tara.
+
+    // 2. Geçmiş var ama son taramada sıra alınamamışsa (rank: null) tekrar tara.
+    // Bu, yeni eklenip henüz hiç başarılı sıra alamamış anahtar kelimeleri yakalar.
+    if (lastScan.rank === null) {
+        console.log("Son sıra null, taranacak.");
+        return true;
     }
+    
+    // 3. Son taramanın tarihi geçersizse, tedbiren tara.
+    if (!lastScan.date || typeof lastScan.date.toDate !== 'function') {
+        console.log("Geçersiz tarih, taranacak.");
+        return true; 
+    }
+    
+    // 4. Son tarama 7 günden eskiyse tara.
     const lastScanDate = lastScan.date.toDate();
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    return lastScanDate < sevenDaysAgo; // Son tarama 7 günden eskiyse tara.
+    const isOld = lastScanDate < sevenDaysAgo;
+    if (isOld) {
+        console.log("Son tarama 7 günden eski, taranacak.");
+    } else {
+        console.log("Son tarama 7 günden yeni, atlanacak.");
+    }
+    return isOld;
 }
 
 
@@ -112,6 +133,7 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
 
             for (const keywordDoc of keywordsSnapshot.docs) {
                 const keywordData = keywordDoc.data();
+                 console.log(`Anahtar kelime kontrol ediliyor: '${keywordData.name}'`);
                 
                 if (!shouldScanKeyword(keywordData.history)) {
                     console.log(`Anahtar kelime '${keywordData.name}' son 7 gün içinde tarandığı için atlanıyor.`);
@@ -119,7 +141,7 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
                 }
 
                 if (!keywordData.name || !projectData.domain || !keywordData.country) {
-                    console.warn(`Anahtar kelime ${keywordDoc.id} eksik bilgiye sahip, atlanıyor.`);
+                    console.warn(`Anahtar kelime ${keywordDoc.id} eksik bilgiye sahip (isim, domain veya ülke), atlanıyor.`);
                     continue;
                 }
 

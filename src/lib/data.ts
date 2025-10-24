@@ -45,17 +45,10 @@ export const addProject = async (db: Firestore, userId: string, project: Omit<Pr
 };
 
 export const addKeyword = async (db: Firestore, userId: string, projectId: string, keywordData: Omit<Keyword, 'id' | 'projectId' | 'history'>): Promise<Keyword> => {
-    const initialHistory: RankHistory = {
-        date: new Date().toISOString(),
-        rank: null,
-    };
-    
     const newKeywordForDb = {
         ...keywordData,
         projectId,
-        history: [
-            { ...initialHistory, date: Timestamp.fromDate(new Date(initialHistory.date)) }
-        ]
+        history: [] // Start with an empty history
     };
 
     const docRef = await addDoc(collection(db, 'users', userId, 'projects', projectId, 'keywords'), newKeywordForDb);
@@ -65,7 +58,7 @@ export const addKeyword = async (db: Firestore, userId: string, projectId: strin
         projectId,
         name: keywordData.name,
         country: keywordData.country,
-        history: [initialHistory] 
+        history: [] 
     };
 };
 
@@ -100,3 +93,4 @@ export const countries = [
   { value: 'France', label: 'France' },
   { value: 'Türkiye', label: 'Türkiye' },
 ];
+
