@@ -3,7 +3,6 @@
 
 import * as admin from 'firebase-admin';
 import { getJson } from "serpapi";
-import { ServiceAccount } from 'firebase-admin';
 
 // Helper function to safely initialize Firebase Admin
 function initializeFirebaseAdmin() {
@@ -32,7 +31,50 @@ function initializeFirebaseAdmin() {
   }
 }
 
-async function getRankForKeyword(keyword: string, domain: string, country: string): Promise<number | null> {
+// New function using Google Custom Search JSON API
+async function getRankForKeyword(keyword: string, domain: string): Promise<number | null> {
+    const apiKey = process.env.GOOGLE_API_KEY;
+    const searchEngineId = process.env.CUSTOM_SEARCH_ENGINE_ID;
+
+    if (!apiKey || !searchEngineId) {
+        const errorMessage = "Google API Anahtarı veya Arama Motoru Kimliği sunucu ortamında ayarlanmamış.";
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+    
+    const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(keyword)}&num=100`;
+
+    try {
+        console.log(`'${keyword}' için Google Custom Search API ile sıra aranıyor...`);
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.error) {
+            console.error(`Google API Hatası (${keyword}):`, data.error.message);
+            // Don't throw for a single keyword error, just return null
+            return null; 
+        }
+
+        if (!data.items || data.items.length === 0) {
+            console.log(`'${keyword}' için sonuç bulunamadı.`);
+            return null;
+        }
+
+        const rank = data.items.findIndex((item: any) => item.link && item.link.includes(domain)) + 1;
+
+        console.log(`'${keyword}' için bulunan sıra: ${rank > 0 ? rank : 'Bulunamadı'}.`);
+        return rank > 0 ? rank : null;
+
+    } catch (error: any) {
+        console.error(`'${keyword}' için sıra alınırken kritik hata oluştu:`, error.message);
+        // On network or other critical errors, return null to not break the entire scan for other keywords
+        return null;
+    }
+}
+
+
+// Kept for backup or future use
+async function getRankForKeywordSerpApi(keyword: string, domain: string, country: string): Promise<number | null> {
     try {
         const serpApiKey = process.env.SERPAPI_KEY;
         if (!serpApiKey) {
@@ -66,21 +108,18 @@ async function getRankForKeyword(keyword: string, domain: string, country: strin
 }
 
 function shouldScanKeyword(history: any[]): boolean {
-    // 1. Henüz hiç taranmamışsa (geçmişi boşsa) kesinlikle tara.
     if (!history || history.length === 0) {
         console.log("Geçmiş boş, taranacak.");
-        return true; 
+        return true;
     }
     
     const lastScan = history[history.length - 1];
     
-    // 2. Son taramanın tarihi geçersizse, tedbiren tara.
     if (!lastScan.date || typeof lastScan.date.toDate !== 'function') {
         console.log("Geçersiz tarih, taranacak.");
-        return true; 
+        return true;
     }
     
-    // 3. Son tarama 7 günden eskiyse tara.
     const lastScanDate = lastScan.date.toDate();
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -131,12 +170,13 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
                     continue;
                 }
 
-                if (!keywordData.name || !projectData.domain || !keywordData.country) {
-                    console.warn(`Anahtar kelime ${keywordDoc.id} eksik bilgiye sahip (isim, domain veya ülke), atlanıyor.`);
+                if (!keywordData.name || !projectData.domain) {
+                    console.warn(`Anahtar kelime ${keywordDoc.id} eksik bilgiye sahip (isim veya domain), atlanıyor.`);
                     continue;
                 }
 
-                const rank = await getRankForKeyword(keywordData.name, projectData.domain, keywordData.country);
+                // Call the new Google Custom Search API function
+                const rank = await getRankForKeyword(keywordData.name, projectData.domain);
                 
                 const newHistoryRecord = {
                     date: admin.firestore.Timestamp.now(),
