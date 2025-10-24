@@ -117,11 +117,13 @@ export default function ProjectPage() {
   const handleDialogSubmit = async (formData: KeywordFormData) => {
     if (!user || !db) return;
 
+    const processedName = formData.name.toLowerCase();
+
     if (keywordToEdit) {
       // Update existing keyword
       const isDuplicate = keywords.some(
         kw => 
-          kw.name.toLowerCase() === formData.name.toLowerCase() && 
+          kw.name.toLowerCase() === processedName && 
           kw.country === formData.country &&
           kw.id !== keywordToEdit.id
       );
@@ -135,7 +137,7 @@ export default function ProjectPage() {
         return;
       }
       try {
-        const updatedKeyword = await updateKeywordInDb(db, user.uid, projectId, keywordToEdit.id, formData);
+        const updatedKeyword = await updateKeywordInDb(db, user.uid, projectId, keywordToEdit.id, { ...formData, name: processedName });
         setKeywords(prev => prev.map(kw => kw.id === updatedKeyword.id ? updatedKeyword : kw));
         toast({ title: "Anahtar Kelime Güncellendi" });
       } catch (error) {
@@ -147,7 +149,7 @@ export default function ProjectPage() {
       // Add new keywords (bulk)
       const keywordsToAdd = formData.name
         .split(/[\n,]/) // Split by new line or comma
-        .map(kw => kw.trim())
+        .map(kw => kw.trim().toLowerCase())
         .filter(kw => kw.length > 0);
 
       let addedCount = 0;
@@ -163,7 +165,7 @@ export default function ProjectPage() {
         }
 
         const isDuplicate = keywords.some(
-          kw => kw.name.toLowerCase() === kwName.toLowerCase() && kw.country === formData.country
+          kw => kw.name.toLowerCase() === kwName && kw.country === formData.country
         );
 
         if (isDuplicate) {
@@ -301,3 +303,5 @@ export default function ProjectPage() {
     </>
   )
 }
+
+    
