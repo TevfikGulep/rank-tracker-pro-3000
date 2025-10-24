@@ -44,6 +44,14 @@ export const addProject = async (db: Firestore, userId: string, project: Omit<Pr
     return { id: docRef.id, ...newProject };
 };
 
+export const updateProject = async (db: Firestore, userId: string, projectId: string, projectData: Partial<Omit<Project, 'id' | 'ownerId'>>): Promise<Project> => {
+    const projectRef = doc(db, 'users', userId, 'projects', projectId);
+    await updateDoc(projectRef, projectData);
+    const updatedDoc = await getDoc(projectRef);
+    return { id: updatedDoc.id, ...updatedDoc.data() } as Project;
+};
+
+
 export const addKeyword = async (db: Firestore, userId: string, projectId: string, keywordData: Omit<Keyword, 'id' | 'projectId' | 'history'>): Promise<Keyword> => {
     const newKeywordForDb = {
         ...keywordData,
@@ -94,3 +102,12 @@ export const countries = [
   { value: 'Türkiye', label: 'Türkiye' },
 ];
 
+export const daysOfWeek = [
+  { value: "Pazartesi", label: "Pazartesi" },
+  { value: "Salı", label: "Salı" },
+  { value: "Çarşamba", label: "Çarşamba" },
+  { value: "Perşembe", label: "Perşembe" },
+  { value: "Cuma", label: "Cuma" },
+  { value: "Cumartesi", label: "Cumartesi" },
+  { value: "Pazar", label: "Pazar" },
+]

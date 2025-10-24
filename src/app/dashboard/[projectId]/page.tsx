@@ -2,6 +2,7 @@
 "use client"
 
 import { getKeywordsForProject, getProject, addKeyword as addKeywordToDb, deleteKeyword as deleteKeywordFromDb, updateKeyword as updateKeywordInDb } from "@/lib/data"
+import Link from "next/link"
 import { notFound, useParams } from "next/navigation"
 import {
   Card,
@@ -11,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Loader } from "lucide-react"
+import { PlusCircle, Loader, Settings } from "lucide-react"
 import { KeywordTable } from "./keyword-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEffect, useState, useCallback, useTransition } from "react"
@@ -172,10 +173,18 @@ export default function ProjectPage() {
         keywordToEdit={keywordToEdit}
       />
       <div className="space-y-4 h-full flex flex-col">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
-            <p className="text-muted-foreground">{project.domain}</p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="flex items-center gap-4">
+             <div>
+              <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
+              <p className="text-muted-foreground">{project.domain}</p>
+            </div>
+             <Button variant="outline" size="icon" asChild>
+                <Link href={`/dashboard/${projectId}/settings`}>
+                    <Settings className="h-4 w-4" />
+                    <span className="sr-only">Proje Ayarları</span>
+                </Link>
+            </Button>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2">
             <ScanButton onScanComplete={loadData} />
