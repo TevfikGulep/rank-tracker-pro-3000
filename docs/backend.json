@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -38,6 +39,11 @@
         "name": {
           "type": "string",
           "description": "Name of the project."
+        },
+        "scanDay": {
+          "type": "string",
+          "description": "The day of the week for scheduled scans.",
+          "enum": ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
         }
       },
       "required": [

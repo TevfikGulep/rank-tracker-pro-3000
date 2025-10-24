@@ -9,6 +9,7 @@ import { ServiceAccount } from 'firebase-admin';
 function initializeFirebaseAdmin() {
   // Check if the app is already initialized
   if (admin.apps.length > 0) {
+    console.log("Firebase Admin zaten başlatılmış.");
     return admin.firestore();
   }
 
@@ -24,6 +25,7 @@ function initializeFirebaseAdmin() {
       credential: admin.credential.cert(serviceAccount)
     });
     
+    console.log("Firebase Admin başarıyla başlatıldı.");
     return admin.firestore();
 
   } catch (error: any) {
@@ -40,6 +42,7 @@ async function getRankForKeyword(keyword: string, domain: string, country: strin
             throw new Error("SERP API anahtarı eksik.");
         }
 
+        console.log(`'${keyword}' için '${country}' ülkesinde sıra aranıyor...`);
         const response = await getJson({
             engine: "google",
             q: keyword,
@@ -50,16 +53,33 @@ async function getRankForKeyword(keyword: string, domain: string, country: strin
 
         const organicResults = response.organic_results;
         if (!organicResults || organicResults.length === 0) {
+            console.log(`'${keyword}' için organik sonuç bulunamadı.`);
             return null;
         }
 
         const rank = organicResults.findIndex((result: any) => result.link && result.link.includes(domain)) + 1;
         
+        console.log(`'${keyword}' için bulunan sıra: ${rank > 0 ? rank : 'Bulunamadı'}.`);
         return rank > 0 ? rank : null;
     } catch (error: any) {
         console.error(`'${keyword}' için sıra alınırken hata oluştu:`, error.message);
         return null; // Return null on error to not break the entire scan
     }
+}
+
+function shouldScanKeyword(history: any[]): boolean {
+    if (!history || history.length === 0) {
+        return true; // Henüz hiç taranmamış, bu yüzden tara.
+    }
+    const lastScan = history[history.length - 1];
+    if (!lastScan.date || typeof lastScan.date.toDate !== 'function') {
+        return true; // Geçersiz tarih formatı, tedbiren tara.
+    }
+    const lastScanDate = lastScan.date.toDate();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    return lastScanDate < sevenDaysAgo; // Son tarama 7 günden eskiyse tara.
 }
 
 
@@ -93,6 +113,11 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
             for (const keywordDoc of keywordsSnapshot.docs) {
                 const keywordData = keywordDoc.data();
                 
+                if (!shouldScanKeyword(keywordData.history)) {
+                    console.log(`Anahtar kelime '${keywordData.name}' son 7 gün içinde tarandığı için atlanıyor.`);
+                    continue;
+                }
+
                 if (!keywordData.name || !projectData.domain || !keywordData.country) {
                     console.warn(`Anahtar kelime ${keywordDoc.id} eksik bilgiye sahip, atlanıyor.`);
                     continue;

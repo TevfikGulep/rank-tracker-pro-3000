@@ -1,3 +1,4 @@
+
 export type RankHistory = {
   date: string;
   rank: number | null;
@@ -15,4 +16,5 @@ export type Project = {
   id: string;
   name: string;
   domain: string;
+  scanDay?: string; // Haftalık tarama günü
 };

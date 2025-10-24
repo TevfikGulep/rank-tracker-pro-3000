@@ -28,6 +28,7 @@ import { Label } from "./ui/label"
 import { addProject as addProjectToDb } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { useFirebase } from "@/firebase"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverTrigger>
 
@@ -36,9 +37,20 @@ interface ProjectSwitcherProps extends PopoverTriggerProps {
   onProjectCreated: (project: Project) => void
 }
 
+const daysOfWeek = [
+  { value: "Pazartesi", label: "Pazartesi" },
+  { value: "Salı", label: "Salı" },
+  { value: "Çarşamba", label: "Çarşamba" },
+  { value: "Perşembe", label: "Perşembe" },
+  { value: "Cuma", label: "Cuma" },
+  { value: "Cumartesi", label: "Cumartesi" },
+  { value: "Pazar", label: "Pazar" },
+]
+
 function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: { open: boolean, onOpenChange: (open: boolean) => void, onProjectCreated: (project: Project) => void }) {
   const [name, setName] = React.useState("");
   const [domain, setDomain] = React.useState("");
+  const [scanDay, setScanDay] = React.useState("Pazartesi");
   const [isCreating, setIsCreating] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -55,7 +67,7 @@ function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: { open: b
     }
     setIsCreating(true);
     try {
-      const newProject = await addProjectToDb(db, user.uid, { name, domain });
+      const newProject = await addProjectToDb(db, user.uid, { name, domain, scanDay });
       toast({ title: "Proje Oluşturuldu", description: `"${newProject.name}" başarıyla oluşturuldu.` });
       onProjectCreated(newProject);
       router.push(`/dashboard/${newProject.id}`);
@@ -66,6 +78,7 @@ function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: { open: b
       setIsCreating(false);
       setName("");
       setDomain("");
+      setScanDay("Pazartesi");
     }
   };
 
@@ -86,6 +99,21 @@ function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: { open: b
           <div className="space-y-2">
             <Label htmlFor="project-domain">Domain</Label>
             <Input id="project-domain" placeholder="example.com" value={domain} onChange={(e) => setDomain(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="scan-day">Haftalık Tarama Günü</Label>
+             <Select onValueChange={setScanDay} value={scanDay}>
+                <SelectTrigger id="scan-day">
+                  <SelectValue placeholder="Bir gün seçin" />
+                </SelectTrigger>
+              <SelectContent>
+                {daysOfWeek.map((day) => (
+                  <SelectItem key={day.value} value={day.value}>
+                    {day.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <DialogFooter>
