@@ -9,7 +9,6 @@ import { ServiceAccount } from 'firebase-admin';
 function initializeFirebaseAdmin() {
   // Check if the app is already initialized
   if (admin.apps.length > 0) {
-    console.log("Firebase Admin zaten başlatılmış.");
     return admin.firestore();
   }
 
@@ -25,7 +24,6 @@ function initializeFirebaseAdmin() {
       credential: admin.credential.cert(serviceAccount)
     });
     
-    console.log("Firebase Admin başarıyla başlatıldı.");
     return admin.firestore();
 
   } catch (error: any) {
@@ -75,21 +73,14 @@ function shouldScanKeyword(history: any[]): boolean {
     }
     
     const lastScan = history[history.length - 1];
-
-    // 2. Geçmiş var ama son taramada sıra alınamamışsa (rank: null) tekrar tara.
-    // Bu, yeni eklenip henüz hiç başarılı sıra alamamış anahtar kelimeleri yakalar.
-    if (lastScan.rank === null) {
-        console.log("Son sıra null, taranacak.");
-        return true;
-    }
     
-    // 3. Son taramanın tarihi geçersizse, tedbiren tara.
+    // 2. Son taramanın tarihi geçersizse, tedbiren tara.
     if (!lastScan.date || typeof lastScan.date.toDate !== 'function') {
         console.log("Geçersiz tarih, taranacak.");
         return true; 
     }
     
-    // 4. Son tarama 7 günden eskiyse tara.
+    // 3. Son tarama 7 günden eskiyse tara.
     const lastScanDate = lastScan.date.toDate();
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
