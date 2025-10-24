@@ -78,6 +78,9 @@ async function getRankForKeyword(keyword: string, domain: string): Promise<numbe
 
 export async function runScanAction(): Promise<{ success: boolean; message: string; scannedKeywords?: number; error?: string; }> {
     console.log("Tarama Eylemi Başlatıldı.");
+
+    const DAILY_SCAN_LIMIT = 90;
+
     try {
         const db = initializeFirebaseAdmin();
         let totalScannedKeywords = 0;
@@ -92,7 +95,13 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
         
         console.log(`${projectsSnapshot.size} proje bulundu.`);
 
+        // Use a standard for...of loop to be able to break out of it
         for (const projectDoc of projectsSnapshot.docs) {
+            if (totalScannedKeywords >= DAILY_SCAN_LIMIT) {
+                console.log(`Günlük tarama limitine (${DAILY_SCAN_LIMIT}) ulaşıldı. İşlem durduruluyor.`);
+                break;
+            }
+            
             const projectData = projectDoc.data();
             console.log(`Proje işleniyor: ${projectDoc.id} (${projectData.name})`);
 
@@ -104,8 +113,13 @@ export async function runScanAction(): Promise<{ success: boolean; message: stri
             console.log(`Proje ${projectDoc.id} için ${keywordsSnapshot.size} anahtar kelime bulundu.`);
 
             for (const keywordDoc of keywordsSnapshot.docs) {
+                if (totalScannedKeywords >= DAILY_SCAN_LIMIT) {
+                    console.log(`Günlük tarama limitine (${DAILY_SCAN_LIMIT}) ulaşıldı. Anahtar kelime döngüsü durduruluyor.`);
+                    break; 
+                }
+
                 const keywordData = keywordDoc.data();
-                 console.log(`Anahtar kelime kontrol ediliyor: '${keywordData.name}'`);
+                console.log(`Anahtar kelime kontrol ediliyor: '${keywordData.name}'`);
                 
                 // Firestore Timestamps need to be handled carefully on the server
                 const history = keywordData.history || [];
