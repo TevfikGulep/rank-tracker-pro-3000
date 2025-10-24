@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useFirebase } from "@/firebase";
 import { getProjects } from "@/lib/data";
 import type { Project } from "@/lib/types";
-import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -18,19 +17,23 @@ export default function DashboardPage() {
     if (!authLoading && user && db) {
       getProjects(db, user.uid).then(userProjects => {
         setProjects(userProjects);
-        if (userProjects.length > 0) {
-          router.replace(`/dashboard/${userProjects[0].id}`);
-        } else {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       });
     } else if (!authLoading) {
-      // Not logged in
+      // Not logged in or waiting for auth
       setIsLoading(false);
     }
-  }, [user, db, authLoading, router]);
+  }, [user, db, authLoading]);
 
-  // If projects exist, we'll be redirecting, so show a loading state.
+  useEffect(() => {
+    // This effect handles redirection after projects have been loaded.
+    // It will only run on the client-side after the component has mounted and data has been fetched.
+    if (!isLoading && projects && projects.length > 0) {
+      router.replace(`/dashboard/${projects[0].id}`);
+    }
+  }, [isLoading, projects, router]);
+
+  // If we are loading projects OR if we have projects and are about to redirect, show a loading state.
   if (isLoading || (projects && projects.length > 0)) {
      return (
       <div className="flex flex-1 items-center justify-center">
@@ -56,8 +59,7 @@ export default function DashboardPage() {
         <p className="text-sm text-muted-foreground">
           Başlamak için bir proje oluşturun.
         </p>
-        {/* The button to create a project is in the sidebar, we can add one here if needed */}
-        {/* <Button className="mt-4">Proje Oluştur</Button> */}
+        {/* The button to create a project is in the sidebar */}
       </div>
     </div>
   )

@@ -76,5 +76,10 @@
       },
       "description": "Stores keyword documents for a specific project."
     }
-  }
+  },
+  "secretEnv": [
+    { "key": "GOOGLE_API_KEY" },
+    { "key": "CUSTOM_SEARCH_ENGINE_ID" },
+    { "key": "FIREBASE_SERVICE_ACCOUNT" }
+  ]
 }
