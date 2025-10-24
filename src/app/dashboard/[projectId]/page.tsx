@@ -25,7 +25,11 @@ import { runScanAction } from "@/lib/actions"
 
 type KeywordFormData = Omit<Keyword, 'id' | 'history' | 'projectId'>;
 
-function ScanButton() {
+interface ScanButtonProps {
+  onScanComplete: () => void;
+}
+
+function ScanButton({ onScanComplete }: ScanButtonProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -36,6 +40,7 @@ function ScanButton() {
         const result = await runScanAction();
         if (result.success) {
           toast({ title: "Tarama Başarılı", description: `${result.scannedKeywords} anahtar kelime güncellendi.` });
+          onScanComplete(); // Trigger data reload
         } else {
           throw new Error(result.error);
         }
@@ -81,7 +86,8 @@ export default function ProjectPage() {
       return;
     }
     
-    setIsLoading(true);
+    // Don't set loading to true for re-fetches
+    // setIsLoading(true); 
     try {
       const projectData = await getProject(db, user.uid, projectId);
       if (!projectData) {
@@ -102,6 +108,7 @@ export default function ProjectPage() {
 
   useEffect(() => {
     if (user && db && projectId) {
+      setIsLoading(true);
       loadData();
     }
   }, [user, db, projectId, loadData]);
@@ -172,7 +179,7 @@ export default function ProjectPage() {
             <p className="text-muted-foreground">{project.domain}</p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2">
-            <ScanButton />
+            <ScanButton onScanComplete={loadData} />
             <Select defaultValue="Türkiye">
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Ülke Seçin" />
