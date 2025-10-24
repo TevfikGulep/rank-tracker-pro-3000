@@ -137,6 +137,23 @@ export default function ProjectPage() {
   const handleDialogSubmit = async (formData: KeywordFormData) => {
     if (!user || !db) return;
 
+    const isDuplicate = keywords.some(
+      kw => 
+        kw.name.toLowerCase() === formData.name.toLowerCase() && 
+        kw.country === formData.country &&
+        kw.id !== keywordToEdit?.id // Exclude the keyword being edited from the check
+    );
+
+    if (isDuplicate) {
+      toast({
+        variant: "destructive",
+        title: "Yinelenen Anahtar Kelime",
+        description: "Bu anahtar kelime ve ülke kombinasyonu zaten projede mevcut.",
+      });
+      return;
+    }
+
+
     try {
       if (keywordToEdit) {
         // Update existing keyword
