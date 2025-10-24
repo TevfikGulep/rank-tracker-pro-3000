@@ -24,3 +24,7 @@ env:
     value: 127.0.0.1:8080
   - variable: FIREBASE_SERVICE_ACCOUNT
     secret: FIREBASE_SERVICE_ACCOUNT
+  - variable: SERPAPI_KEY
+    secret: SERPAPI_KEY
+
+    
