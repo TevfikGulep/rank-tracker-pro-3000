@@ -28,7 +28,28 @@ type KeywordFormData = Omit<Keyword, 'id' | 'history' | 'projectId'>;
 
 interface ScanButtonProps {
   onScanComplete: () => void;
+  keywords: Keyword[];
 }
+
+function getMostRecentScanDate(keywords: Keyword[]): Date | null {
+  if (!keywords || keywords.length === 0) {
+    return null;
+  }
+
+  let mostRecent: Date | null = null;
+
+  keywords.forEach(keyword => {
+    if (keyword.history && keyword.history.length > 0) {
+      const lastScanDate = new Date(keyword.history[keyword.history.length - 1].date);
+      if (!mostRecent || lastScanDate > mostRecent) {
+        mostRecent = lastScanDate;
+      }
+    }
+  });
+
+  return mostRecent;
+}
+
 
 function ScanButton({ onScanComplete }: ScanButtonProps) {
   const [isPending, startTransition] = useTransition();
@@ -55,9 +76,9 @@ function ScanButton({ onScanComplete }: ScanButtonProps) {
       }
     });
   };
-  
+
   return (
-     <Button onClick={handleScan} disabled={isPending} variant="outline" className="w-full sm:w-auto">
+    <Button onClick={handleScan} disabled={isPending} variant="outline" className="w-full sm:w-auto">
       {isPending ? (
         <>
           <Loader className="mr-2 h-4 w-4 animate-spin" />
@@ -67,7 +88,7 @@ function ScanButton({ onScanComplete }: ScanButtonProps) {
         "Şimdi Tara"
       )}
     </Button>
-  )
+  );
 }
 
 
@@ -147,6 +168,14 @@ export default function ProjectPage() {
   };
   
   const openAddDialog = () => {
+    if (keywords.length >= 60) {
+      toast({
+        variant: "destructive",
+        title: "Limit Aşıldı",
+        description: "Bir projeye en fazla 60 anahtar kelime ekleyebilirsiniz.",
+      });
+      return;
+    }
     setKeywordToEdit(null);
     setIsDialogOpen(true);
   };
@@ -187,7 +216,7 @@ export default function ProjectPage() {
             </Button>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2">
-            <ScanButton onScanComplete={loadData} />
+            <ScanButton onScanComplete={loadData} keywords={keywords} />
             <Select defaultValue="Türkiye">
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Ülke Seçin" />
