@@ -32,13 +32,14 @@ import {
 } from "@/components/ui/select"
 import { countries } from "@/lib/data"
 import type { Keyword } from "@/lib/types"
+import { Textarea } from "@/components/ui/textarea"
 
 const keywordSchema = z.object({
-  name: z.string().min(3, { message: "Anahtar kelime en az 3 karakter olmalıdır." }),
+  name: z.string().min(3, { message: "Anahtar kelime(ler) en az 3 karakter olmalıdır." }),
   country: z.string({ required_error: "Lütfen bir ülke seçin." }),
 })
 
-type KeywordFormValues = z.infer<typeof keywordSchema>
+export type KeywordFormValues = z.infer<typeof keywordSchema>
 
 interface KeywordDialogProps {
   open: boolean
@@ -87,11 +88,11 @@ export function KeywordDialog({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleFormSubmit)}>
             <DialogHeader>
-              <DialogTitle>{isEditMode ? "Anahtar Kelimeyi Düzenle" : "Yeni Anahtar Kelime Ekle"}</DialogTitle>
+              <DialogTitle>{isEditMode ? "Anahtar Kelimeyi Düzenle" : "Yeni Anahtar Kelime(ler) Ekle"}</DialogTitle>
               <DialogDescription>
                 {isEditMode 
                   ? "Anahtar kelime adını veya ülkesini güncelleyin."
-                  : "İzlemek için yeni bir anahtar kelime ve ülke ekleyin."
+                  : "İzlemek için yeni anahtar kelimeler ekleyin. Her satıra bir tane veya virgülle ayırarak yazabilirsiniz."
                 }
               </DialogDescription>
             </DialogHeader>
@@ -101,9 +102,17 @@ export function KeywordDialog({
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Anahtar Kelime</FormLabel>
+                    <FormLabel>Anahtar Kelime(ler)</FormLabel>
                     <FormControl>
-                      <Input placeholder="ör: 'en iyi kahve makinesi'" {...field} />
+                      {isEditMode ? (
+                        <Input placeholder="ör: 'en iyi kahve makinesi'" {...field} />
+                      ) : (
+                        <Textarea
+                          placeholder="en iyi kahve makinesi&#10;kablosuz kulaklık tavsiyesi&#10;istanbul'da gezilecek yerler"
+                          className="min-h-[100px]"
+                          {...field}
+                        />
+                      )}
                     </FormControl>
                     <FormMessage />
                   </FormItem>

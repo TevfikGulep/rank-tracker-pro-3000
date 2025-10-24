@@ -31,27 +31,7 @@ interface ScanButtonProps {
   keywords: Keyword[];
 }
 
-function getMostRecentScanDate(keywords: Keyword[]): Date | null {
-  if (!keywords || keywords.length === 0) {
-    return null;
-  }
-
-  let mostRecent: Date | null = null;
-
-  keywords.forEach(keyword => {
-    if (keyword.history && keyword.history.length > 0) {
-      const lastScanDate = new Date(keyword.history[keyword.history.length - 1].date);
-      if (!mostRecent || lastScanDate > mostRecent) {
-        mostRecent = lastScanDate;
-      }
-    }
-  });
-
-  return mostRecent;
-}
-
-
-function ScanButton({ onScanComplete }: ScanButtonProps) {
+function ScanButton({ onScanComplete, keywords }: ScanButtonProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -137,40 +117,83 @@ export default function ProjectPage() {
   const handleDialogSubmit = async (formData: KeywordFormData) => {
     if (!user || !db) return;
 
-    const isDuplicate = keywords.some(
-      kw => 
-        kw.name.toLowerCase() === formData.name.toLowerCase() && 
-        kw.country === formData.country &&
-        kw.id !== keywordToEdit?.id // Exclude the keyword being edited from the check
-    );
+    if (keywordToEdit) {
+      // Update existing keyword
+      const isDuplicate = keywords.some(
+        kw => 
+          kw.name.toLowerCase() === formData.name.toLowerCase() && 
+          kw.country === formData.country &&
+          kw.id !== keywordToEdit.id
+      );
 
-    if (isDuplicate) {
-      toast({
-        variant: "destructive",
-        title: "Yinelenen Anahtar Kelime",
-        description: "Bu anahtar kelime ve ülke kombinasyonu zaten projede mevcut.",
-      });
-      return;
-    }
-
-
-    try {
-      if (keywordToEdit) {
-        // Update existing keyword
+      if (isDuplicate) {
+        toast({
+          variant: "destructive",
+          title: "Yinelenen Anahtar Kelime",
+          description: "Bu anahtar kelime ve ülke kombinasyonu zaten projede mevcut.",
+        });
+        return;
+      }
+      try {
         const updatedKeyword = await updateKeywordInDb(db, user.uid, projectId, keywordToEdit.id, formData);
         setKeywords(prev => prev.map(kw => kw.id === updatedKeyword.id ? updatedKeyword : kw));
         toast({ title: "Anahtar Kelime Güncellendi" });
-      } else {
-        // Add new keyword
-        const newKeyword = await addKeywordToDb(db, user.uid, projectId, formData);
-        setKeywords(prev => [...prev, newKeyword]);
-        toast({ title: "Anahtar Kelime Eklendi" });
+      } catch (error) {
+        console.error("Error updating keyword: ", error);
+        toast({ variant: "destructive", title: "Hata", description: "Güncelleme sırasında bir hata oluştu." });
       }
-    } catch (error) {
-      console.error("Error saving keyword: ", error);
-      toast({ variant: "destructive", title: "Hata", description: "İşlem sırasında bir hata oluştu." });
+
+    } else {
+      // Add new keywords (bulk)
+      const keywordsToAdd = formData.name
+        .split(/[\n,]/) // Split by new line or comma
+        .map(kw => kw.trim())
+        .filter(kw => kw.length > 0);
+
+      let addedCount = 0;
+      let duplicateCount = 0;
+      let limitReachedCount = 0;
+      const newKeywordsList: Keyword[] = [];
+
+      for (const kwName of keywordsToAdd) {
+        const currentTotal = keywords.length + addedCount;
+        if (currentTotal >= 60) {
+          limitReachedCount = keywordsToAdd.length - addedCount;
+          break; // Stop if limit is reached
+        }
+
+        const isDuplicate = keywords.some(
+          kw => kw.name.toLowerCase() === kwName.toLowerCase() && kw.country === formData.country
+        );
+
+        if (isDuplicate) {
+          duplicateCount++;
+          continue;
+        }
+
+        try {
+          const newKeyword = await addKeywordToDb(db, user.uid, projectId, { name: kwName, country: formData.country });
+          newKeywordsList.push(newKeyword);
+          addedCount++;
+        } catch (error) {
+          console.error(`Error adding keyword "${kwName}": `, error);
+          toast({ variant: "destructive", title: "Hata", description: `"${kwName}" eklenirken bir hata oluştu.` });
+          // Optionally stop on first error
+          // return;
+        }
+      }
+      
+      if (newKeywordsList.length > 0) {
+        setKeywords(prev => [...prev, ...newKeywordsList]);
+      }
+
+      toast({
+        title: "İşlem Tamamlandı",
+        description: `${addedCount} anahtar kelime eklendi. ${duplicateCount > 0 ? `${duplicateCount} zaten mevcuttu.` : ''} ${limitReachedCount > 0 ? `${limitReachedCount} kelime, 60 anahtar kelime limitine ulaşıldığı için eklenemedi.` : ''}`.trim(),
+      });
     }
   };
+
 
   const handleDeleteKeyword = async (keywordId: string) => {
     if (!user || !db) return;
