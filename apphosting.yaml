@@ -19,8 +19,3 @@ secretEnv:
     secret: CUSTOM_SEARCH_ENGINE_ID
   - key: FIREBASE_SERVICE_ACCOUNT
     secret: FIREBASE_SERVICE_ACCOUNT
-env:
-  - variable: GOOGLE_API_KEY
-    secret: GOOGLE_API_KEY
-  - variable: CUSTOM_SEARCH_ENGINE_ID
-    secret: CUSTOM_SEARCH_ENGINE_ID
